@@ -4,38 +4,54 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
 };
 
 const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!FASHN_API_KEY) {
-  console.error('FASHN_API_KEY is missing');
-  throw new Error('FASHN_API_KEY is not set in environment variables');
+if (!FASHN_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Required environment variables are not set');
 }
 
-console.log('Environment variables loaded:', {
-  hasApiKey: !!FASHN_API_KEY,
-  hasSupabaseUrl: !!SUPABASE_URL,
-  hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY
-});
-
-const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
-    const { modelImage, garmentImage, category, userId } = await req.json();
-    console.log('Received request:', { modelImage, garmentImage, category, userId });
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing Authorization header');
+    }
 
-    // Validate required parameters
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      throw new Error('Unauthorized');
+    }
+
+    // Parse and validate request body
+    const { modelImage, garmentImage, category, userId } = await req.json()
+      .catch(() => ({}));
+
     if (!modelImage || !garmentImage || !category || !userId) {
-      console.error('Missing parameters:', { modelImage: !!modelImage, garmentImage: !!garmentImage, category: !!category, userId: !!userId });
       throw new Error('Missing required parameters');
+    }
+
+    // Verify user matches authenticated user
+    if (userId !== user.id) {
+      throw new Error('User ID mismatch');
     }
 
     // Get the latest pending generation
@@ -49,20 +65,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (fetchError) {
-      console.error('Error fetching pending generation:', fetchError);
       throw new Error('Failed to fetch pending generation');
     }
 
-    console.log('Found pending generation:', pendingGeneration);
-
     // Call Fashn AI API
-    console.log('Calling FashnAI API with:', {
-      model_image: modelImage.substring(0, 50) + '...',
-      garment_image: garmentImage.substring(0, 50) + '...',
-      category,
-      webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
-    });
-
     const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
@@ -78,20 +84,12 @@ Deno.serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('FashnAI API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData
-      });
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
     const data = await response.json();
-    console.log('FashnAI API response:', data);
-
     if (!data.task_id) {
-      console.error('No task_id in response:', data);
       throw new Error('No task_id received from FashnAI API');
     }
 
@@ -105,15 +103,16 @@ Deno.serve(async (req) => {
       .eq('id', pendingGeneration.id);
 
     if (updateError) {
-      console.error('Error updating generation with task_id:', updateError);
       throw new Error('Failed to update generation with task_id');
     }
 
-    console.log('Successfully updated generation with task_id:', data.task_id);
-
     return new Response(
-      JSON.stringify({ success: true, taskId: data.task_id }),
+      JSON.stringify({ 
+        success: true, 
+        taskId: data.task_id 
+      }),
       {
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
@@ -130,7 +129,7 @@ Deno.serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: 400,
+        status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,

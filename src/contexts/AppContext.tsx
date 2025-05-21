@@ -120,14 +120,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const checkGenerationStatus = async (taskId: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session found');
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error('Failed to check status');
+        throw new Error(`Status check failed: ${response.statusText}`);
       }
 
       const { status, resultUrl } = await response.json();
@@ -155,6 +158,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGenerationProgress(0);
     
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session found');
+
       // Upload images to Supabase Storage
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
@@ -179,7 +185,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -191,12 +197,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
         console.error('Generation API error:', errorData);
-        throw new Error(errorData.error || 'Failed to start generation');
+        throw new Error(errorData.error || `Failed to start generation: ${response.statusText}`);
       }
 
       const { taskId } = await response.json();
+      if (!taskId) throw new Error('No task ID received from generation endpoint');
 
       // Poll for status updates
       const statusInterval = setInterval(async () => {
@@ -213,11 +220,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } else if (status === 'failed') {
           clearInterval(statusInterval);
           setIsGenerating(false);
+          throw new Error('Generation failed');
         }
       }, 2000);
 
       // Clear interval after 5 minutes (timeout)
-      setTimeout(() => clearInterval(statusInterval), 300000);
+      setTimeout(() => {
+        clearInterval(statusInterval);
+        if (generationStatus !== 'completed') {
+          setGenerationStatus('failed');
+          setIsGenerating(false);
+          throw new Error('Generation timed out');
+        }
+      }, 300000);
 
     } catch (error) {
       console.error('Error generating try-on:', error);
