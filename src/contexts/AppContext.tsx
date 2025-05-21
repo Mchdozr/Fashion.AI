@@ -100,6 +100,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
+  const checkGenerationStatus = async (taskId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check status');
+      }
+
+      const { status, resultUrl } = await response.json();
+      return { status, resultUrl };
+    } catch (error) {
+      console.error('Error checking status:', error);
+      return { status: 'failed', resultUrl: null };
+    }
+  };
+
   const startGeneration = async () => {
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) return;
     
@@ -147,25 +167,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Poll for status updates
       const statusInterval = setInterval(async () => {
-        const { data: status } = await supabase
-          .from('generations')
-          .select('status, result_image_url')
-          .eq('task_id', taskId)
-          .single();
+        const { status, resultUrl } = await checkGenerationStatus(taskId);
+        
+        setGenerationStatus(status);
+        setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
-        if (status) {
-          setGenerationStatus(status.status);
-          setGenerationProgress(status.status === 'completed' ? 100 : 50);
-
-          if (status.status === 'completed' && status.result_image_url) {
-            setResultImage(status.result_image_url);
-            clearInterval(statusInterval);
-            setIsGenerating(false);
-            await fetchUserData(user.id);
-          } else if (status.status === 'failed') {
-            clearInterval(statusInterval);
-            setIsGenerating(false);
-          }
+        if (status === 'completed' && resultUrl) {
+          setResultImage(resultUrl);
+          clearInterval(statusInterval);
+          setIsGenerating(false);
+          await fetchUserData(user.id);
+        } else if (status === 'failed') {
+          clearInterval(statusInterval);
+          setIsGenerating(false);
         }
       }, 2000);
 
