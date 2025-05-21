@@ -171,7 +171,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
 
-      // Upload images to Supabase Storage
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
@@ -217,7 +216,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { taskId } = await response.json();
       if (!taskId) throw new Error('No task ID received from generation endpoint');
 
-      // Poll for status updates
       statusInterval = window.setInterval(async () => {
         const { status, resultUrl } = await checkGenerationStatus(taskId);
         
@@ -236,7 +234,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }, 2000);
 
-      // Clear interval after 5 minutes (timeout)
       setTimeout(() => {
         if (statusInterval) {
           clearInterval(statusInterval);
