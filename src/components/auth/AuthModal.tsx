@@ -29,7 +29,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         });
         if (error) {
           if (error.message === 'User already registered') {
-            setError('This email is already registered. Please sign in.');
+            setError('This email is already registered. Please sign in instead.');
+            setIsSignUp(false);
+            setLoading(false);
             return;
           }
           throw error;

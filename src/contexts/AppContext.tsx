@@ -139,7 +139,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const startGeneration = async () => {
-    if (!modelImage || !garmentImage || !isModelReady || !category || !user) return;
+    if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
+      console.error('Missing required data:', {
+        modelImage: !!modelImage,
+        garmentImage: !!garmentImage,
+        isModelReady,
+        category,
+        user: !!user
+      });
+      throw new Error('Missing required data for generation');
+    }
     
     setIsGenerating(true);
     setGenerationStatus('pending');
@@ -182,7 +191,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to start generation');
+        const errorData = await response.json();
+        console.error('Generation API error:', errorData);
+        throw new Error(errorData.error || 'Failed to start generation');
       }
 
       const { taskId } = await response.json();
@@ -212,6 +223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error('Error generating try-on:', error);
       setGenerationStatus('failed');
       setIsGenerating(false);
+      throw error;
     }
   };
 
