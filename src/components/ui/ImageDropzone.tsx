@@ -29,7 +29,8 @@ const ImageDropzone: React.FC<ImageDropzoneProps> = ({ image, onImageChange, cla
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.webp']
     },
-    maxFiles: 1
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024 // 5MB limit
   });
 
   return (
@@ -59,12 +60,10 @@ const ImageDropzone: React.FC<ImageDropzoneProps> = ({ image, onImageChange, cla
             )}
           </div>
           <p className="mb-1 text-sm font-medium text-gray-300">
-            {isDragActive ? 'Drop image here' : 'Paste/drop image here'}
+            {isDragActive ? 'Drop image here' : 'Drop image here or click to upload'}
           </p>
-          <p className="text-xs text-gray-500 mb-3">OR</p>
-          <button className="px-4 py-2 bg-[#333333] hover:bg-[#444444] rounded text-sm text-white transition-colors duration-150">
-            Choose file
-          </button>
+          <p className="text-xs text-gray-500">Maximum size: 5MB</p>
+          <p className="text-xs text-gray-500">Supported formats: JPG, PNG, WebP</p>
         </div>
       )}
     </div>
