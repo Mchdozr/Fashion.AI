@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
-    // Get the generation record first
+    // Get the generation record
     const { data: generation, error: generationError } = await supabase
       .from('generations')
       .select('*')
@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (generationError) {
+      console.error('Generation fetch error:', generationError);
       throw new Error('Generation not found');
     }
 
@@ -43,37 +44,32 @@ Deno.serve(async (req) => {
       },
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to check status');
+      throw new Error('Failed to check status');
     }
 
-    let updateData = {};
+    const data = await response.json();
+    console.log('FashnAI status response:', data);
+
+    let updateData = {
+      status: data.status
+    };
 
     if (data.status === 'completed' && data.result_url) {
       updateData = {
-        status: 'completed',
+        ...updateData,
         result_image_url: data.result_url
-      };
-    } else if (data.status === 'failed') {
-      updateData = {
-        status: 'failed',
-        result_image_url: null
-      };
-    } else {
-      updateData = {
-        status: data.status
       };
     }
 
-    // Update generation with new status and result URL if available
+    // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
       .update(updateData)
       .eq('task_id', taskId);
 
     if (updateError) {
+      console.error('Status update error:', updateError);
       throw updateError;
     }
 
@@ -95,8 +91,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
-        details: error instanceof Error ? error.stack : undefined
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
         status: 400,

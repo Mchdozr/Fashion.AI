@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       throw new Error('Missing required parameters');
     }
 
-    // Call Fashn AI API with proper error handling
+    // Call Fashn AI API
     const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
         model_image: modelImage,
         garment_image: garmentImage,
         category: category,
+        webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
       }),
     });
 
@@ -50,12 +51,13 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('FashnAI API response:', data);
 
     // Update generation with task ID
     const { error: updateError } = await supabase
       .from('generations')
       .update({ 
-        task_id: data.id,
+        task_id: data.task_id,
         status: 'processing'
       })
       .eq('user_id', userId)
@@ -64,11 +66,12 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (updateError) {
+      console.error('Supabase update error:', updateError);
       throw updateError;
     }
 
     return new Response(
-      JSON.stringify({ success: true, taskId: data.id }),
+      JSON.stringify({ success: true, taskId: data.task_id }),
       {
         headers: {
           'Content-Type': 'application/json',
