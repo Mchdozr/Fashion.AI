@@ -11,8 +11,15 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 if (!FASHN_API_KEY) {
+  console.error('FASHN_API_KEY is missing');
   throw new Error('FASHN_API_KEY is not set in environment variables');
 }
+
+console.log('Environment variables loaded:', {
+  hasApiKey: !!FASHN_API_KEY,
+  hasSupabaseUrl: !!SUPABASE_URL,
+  hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY
+});
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -27,6 +34,7 @@ Deno.serve(async (req) => {
 
     // Validate required parameters
     if (!modelImage || !garmentImage || !category || !userId) {
+      console.error('Missing parameters:', { modelImage: !!modelImage, garmentImage: !!garmentImage, category: !!category, userId: !!userId });
       throw new Error('Missing required parameters');
     }
 
@@ -48,6 +56,13 @@ Deno.serve(async (req) => {
     console.log('Found pending generation:', pendingGeneration);
 
     // Call Fashn AI API
+    console.log('Calling FashnAI API with:', {
+      model_image: modelImage.substring(0, 50) + '...',
+      garment_image: garmentImage.substring(0, 50) + '...',
+      category,
+      webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
+    });
+
     const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
@@ -64,7 +79,11 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('FashnAI API error:', errorData);
+      console.error('FashnAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
@@ -72,6 +91,7 @@ Deno.serve(async (req) => {
     console.log('FashnAI API response:', data);
 
     if (!data.task_id) {
+      console.error('No task_id in response:', data);
       throw new Error('No task_id received from FashnAI API');
     }
 
