@@ -23,11 +23,29 @@ Deno.serve(async (req) => {
 
   try {
     const { modelImage, garmentImage, category, userId } = await req.json();
+    console.log('Received request:', { modelImage, garmentImage, category, userId });
 
     // Validate required parameters
     if (!modelImage || !garmentImage || !category || !userId) {
       throw new Error('Missing required parameters');
     }
+
+    // Get the latest pending generation
+    const { data: pendingGeneration, error: fetchError } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching pending generation:', fetchError);
+      throw new Error('Failed to fetch pending generation');
+    }
+
+    console.log('Found pending generation:', pendingGeneration);
 
     // Call Fashn AI API
     const response = await fetch('https://api.fashn.ai/v1/generate', {
@@ -53,6 +71,10 @@ Deno.serve(async (req) => {
     const data = await response.json();
     console.log('FashnAI API response:', data);
 
+    if (!data.task_id) {
+      throw new Error('No task_id received from FashnAI API');
+    }
+
     // Update generation with task ID
     const { error: updateError } = await supabase
       .from('generations')
@@ -60,15 +82,14 @@ Deno.serve(async (req) => {
         task_id: data.task_id,
         status: 'processing'
       })
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .eq('id', pendingGeneration.id);
 
     if (updateError) {
-      console.error('Supabase update error:', updateError);
-      throw updateError;
+      console.error('Error updating generation with task_id:', updateError);
+      throw new Error('Failed to update generation with task_id');
     }
+
+    console.log('Successfully updated generation with task_id:', data.task_id);
 
     return new Response(
       JSON.stringify({ success: true, taskId: data.task_id }),
