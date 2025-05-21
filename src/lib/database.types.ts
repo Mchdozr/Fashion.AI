@@ -44,6 +44,8 @@ export interface Database {
           num_samples: number
           seed: number
           created_at: string
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          task_id: string | null
         }
         Insert: {
           id?: string
@@ -56,6 +58,8 @@ export interface Database {
           num_samples: number
           seed: number
           created_at?: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          task_id?: string | null
         }
         Update: {
           id?: string
@@ -68,6 +72,8 @@ export interface Database {
           num_samples?: number
           seed?: number
           created_at?: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          task_id?: string | null
         }
       }
     }

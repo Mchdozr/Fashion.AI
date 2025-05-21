@@ -16,6 +16,7 @@ interface AppContextType {
   isModelGenerating: boolean;
   isModelReady: boolean;
   isGenerating: boolean;
+  generationStatus: 'pending' | 'processing' | 'completed' | 'failed';
   generationProgress: number;
   performanceMode: string;
   setPerformanceMode: (mode: string) => void;
@@ -40,6 +41,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isModelGenerating, setIsModelGenerating] = useState<boolean>(false);
   const [isModelReady, setIsModelReady] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationStatus, setGenerationStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   
   const [performanceMode, setPerformanceMode] = useState<string>('balanced');
@@ -50,14 +52,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [credits, setCredits] = useState<number>(0);
 
   useEffect(() => {
-    // Get initial auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchUserData(session.user.id);
       }
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         fetchUserData(session.user.id);
@@ -94,7 +94,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsModelGenerating(true);
     setIsModelReady(false);
     
-    // Simulate AI model generation
     setTimeout(() => {
       setIsModelGenerating(false);
       setIsModelReady(true);
@@ -105,14 +104,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) return;
     
     setIsGenerating(true);
+    setGenerationStatus('pending');
     setGenerationProgress(0);
-    
-    const progressInterval = setInterval(() => {
-      setGenerationProgress(prev => {
-        const newProgress = prev + Math.random() * 15;
-        return newProgress >= 100 ? 100 : newProgress;
-      });
-    }, 500);
     
     try {
       const { data: generation, error } = await supabase
@@ -125,26 +118,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           performance_mode: performanceMode as 'performance' | 'balanced' | 'quality',
           num_samples: numSamples,
           seed: seed,
+          status: 'pending'
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Refresh user data to get updated credits
-      await fetchUserData(user.id);
+      setGenerationStatus('processing');
       
-      // In a real app, we would wait for the actual generation result
-      // For now, we'll just use the garment image as the result
-      setResultImage(garmentImage);
-      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          const newProgress = prev + Math.random() * 15;
+          return newProgress >= 100 ? 100 : newProgress;
+        });
+      }, 500);
+
+      // Simulate API processing time
+      setTimeout(() => {
+        clearInterval(progressInterval);
+        setGenerationProgress(100);
+        setGenerationStatus('completed');
+        setResultImage(garmentImage);
+        fetchUserData(user.id);
+      }, 6000);
+
     } catch (error) {
       console.error('Error generating try-on:', error);
+      setGenerationStatus('failed');
     } finally {
-      clearInterval(progressInterval);
-      setGenerationProgress(100);
-      
-      // Reset generation state after a delay to show 100% completion
       setTimeout(() => {
         setIsGenerating(false);
         setGenerationProgress(0);
@@ -165,6 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isModelGenerating,
         isModelReady,
         isGenerating,
+        generationStatus,
         generationProgress,
         performanceMode,
         setPerformanceMode,

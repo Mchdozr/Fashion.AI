@@ -7,13 +7,27 @@ const ResultPreview: React.FC = () => {
     modelImage, 
     garmentImage, 
     resultImage, 
-    isGenerating, 
+    isGenerating,
+    generationStatus,
     startGeneration,
     isModelReady,
     category
   } = useAppContext();
 
   const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating;
+
+  const getStatusMessage = () => {
+    switch (generationStatus) {
+      case 'pending':
+        return 'Initializing...';
+      case 'processing':
+        return 'Processing your request...';
+      case 'failed':
+        return 'Generation failed. Please try again.';
+      default:
+        return 'Try-on result will appear here';
+    }
+  };
 
   return (
     <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
@@ -39,7 +53,7 @@ const ResultPreview: React.FC = () => {
             />
           ) : (
             <div className="text-center p-4">
-              <div className="text-gray-400 text-sm mb-2">Try-on result will appear here</div>
+              <div className="text-gray-400 text-sm mb-2">{getStatusMessage()}</div>
             </div>
           )}
         </div>
@@ -59,12 +73,12 @@ const ResultPreview: React.FC = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Generating...
+              Processing...
             </>
           ) : (
             <>
               <PlayIcon size={18} className="mr-2" />
-              Run (~6s)
+              Generate
             </>
           )}
         </button>
