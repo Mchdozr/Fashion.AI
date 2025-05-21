@@ -68,57 +68,74 @@ Deno.serve(async (req) => {
       throw new Error('Failed to fetch pending generation');
     }
 
-    // Call Fashn AI API
-    const response = await fetch('https://api.fashn.ai/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${FASHN_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model_image: modelImage,
-        garment_image: garmentImage,
-        category: category,
-        webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
-      }),
-    });
+    // Call Fashn AI API with retries
+    const maxRetries = 3;
+    let lastError = null;
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(errorData.message || 'FashnAI API request failed');
-    }
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await fetch('https://api.fashn.ai/v1/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${FASHN_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model_image: modelImage,
+            garment_image: garmentImage,
+            category: category,
+            webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
+          }),
+        });
 
-    const data = await response.json();
-    if (!data.task_id) {
-      throw new Error('No task_id received from FashnAI API');
-    }
+        if (!response.ok) {
+          const errorData = await response.json()
+            .catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.message || 'FashnAI API request failed');
+        }
 
-    // Update generation with task ID
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({ 
-        task_id: data.task_id,
-        status: 'processing'
-      })
-      .eq('id', pendingGeneration.id);
+        const data = await response.json();
+        if (!data.task_id) {
+          throw new Error('No task_id received from FashnAI API');
+        }
 
-    if (updateError) {
-      throw new Error('Failed to update generation with task_id');
-    }
+        // Update generation with task ID
+        const { error: updateError } = await supabase
+          .from('generations')
+          .update({ 
+            task_id: data.task_id,
+            status: 'processing'
+          })
+          .eq('id', pendingGeneration.id);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        taskId: data.task_id 
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+        if (updateError) {
+          throw new Error('Failed to update generation with task_id');
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            taskId: data.task_id 
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
+          }
+        );
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries - 1) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          continue;
+        }
       }
-    );
+    }
+
+    throw lastError || new Error('Failed after maximum retry attempts');
 
   } catch (error) {
     console.error('Generation error:', error);

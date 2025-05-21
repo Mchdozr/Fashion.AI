@@ -89,21 +89,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const uploadImage = async (imageDataUrl: string): Promise<string> => {
-    const response = await fetch(imageDataUrl);
-    const blob = await response.blob();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-    
-    const { data, error } = await supabase.storage
-      .from('images')
-      .upload(fileName, blob);
+    try {
+      const response = await fetch(imageDataUrl);
+      const blob = await response.blob();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      
+      const { data, error } = await supabase.storage
+        .from('images')
+        .upload(fileName, blob);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('images')
-      .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(fileName);
 
-    return publicUrl;
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw new Error('Failed to upload image');
+    }
   };
 
   const generateAIModel = () => {
@@ -123,7 +128,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
+      statusUrl.searchParams.append('taskId', taskId);
+
+      const response = await fetch(statusUrl, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -157,6 +165,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGenerationStatus('pending');
     setGenerationProgress(0);
     
+    let statusInterval: number | undefined;
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
@@ -182,7 +192,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
+      
+      const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -206,7 +218,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!taskId) throw new Error('No task ID received from generation endpoint');
 
       // Poll for status updates
-      const statusInterval = setInterval(async () => {
+      statusInterval = window.setInterval(async () => {
         const { status, resultUrl } = await checkGenerationStatus(taskId);
         
         setGenerationStatus(status);
@@ -226,11 +238,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Clear interval after 5 minutes (timeout)
       setTimeout(() => {
-        clearInterval(statusInterval);
-        if (generationStatus !== 'completed') {
-          setGenerationStatus('failed');
-          setIsGenerating(false);
-          throw new Error('Generation timed out');
+        if (statusInterval) {
+          clearInterval(statusInterval);
+          if (generationStatus !== 'completed') {
+            setGenerationStatus('failed');
+            setIsGenerating(false);
+            throw new Error('Generation timed out');
+          }
         }
       }, 300000);
 
@@ -238,6 +252,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error('Error generating try-on:', error);
       setGenerationStatus('failed');
       setIsGenerating(false);
+      if (statusInterval) clearInterval(statusInterval);
       throw error;
     }
   };
