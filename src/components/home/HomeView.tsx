@@ -8,33 +8,33 @@ const HomeView: React.FC = () => {
   const features = [
     {
       icon: <Wand2 size={24} />,
-      title: 'Kolay Kullanım',
-      description: 'Sadece bir fotoğraf yükleyin ve kıyafeti seçin'
+      title: 'Easy to Use',
+      description: 'Simply upload a photo and select your garment'
     },
     {
       icon: <Image size={24} />,
-      title: 'Yüksek Kalite',
-      description: 'Gerçekçi ve detaylı sonuçlar'
+      title: 'High Quality',
+      description: 'Realistic and detailed results'
     },
     {
       icon: <Sparkles size={24} />,
-      title: 'Hızlı Sonuç',
-      description: 'Saniyeler içinde sonuç alın'
+      title: 'Fast Results',
+      description: 'Get results within seconds'
     }
   ];
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">FashnAI ile Kıyafetleri Deneyin</h1>
+        <h1 className="text-4xl font-bold mb-4">Try On Clothes with FashnAI</h1>
         <p className="text-gray-400 text-lg mb-8">
-          Yapay zeka ile kıyafetleri üzerinizde görün
+          See how clothes look on you with AI
         </p>
         <button
           onClick={() => navigate('/studio')}
           className="bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-8 py-3 rounded-lg font-medium transition-colors duration-150"
         >
-          Hemen Deneyin
+          Try Now
         </button>
       </div>
 
