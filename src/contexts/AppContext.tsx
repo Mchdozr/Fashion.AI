@@ -32,6 +32,13 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Map internal categories to API categories
+const categoryMapping = {
+  'top': 'tops',
+  'bottom': 'bottoms',
+  'full-body': 'one-pieces'
+} as const;
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modelImage, setModelImage] = useState<string | null>(null);
   const [garmentImage, setGarmentImage] = useState<string | null>(null);
@@ -174,6 +181,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
+      // Map the internal category to the API category
+      const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
+      if (!apiCategory) {
+        throw new Error(`Invalid category: ${category}`);
+      }
+
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
@@ -202,7 +215,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify({
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
-          category,
+          category: apiCategory,
         }),
       });
 
