@@ -88,6 +88,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCredits(data.credits);
   };
 
+  const uploadImage = async (imageDataUrl: string): Promise<string> => {
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+    
+    const { data, error } = await supabase.storage
+      .from('images')
+      .upload(fileName, blob);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('images')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  };
+
   const generateAIModel = () => {
     if (!modelImage) return;
     
@@ -128,12 +146,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGenerationProgress(0);
     
     try {
+      // Upload images to Supabase Storage
+      const modelImageUrl = await uploadImage(modelImage);
+      const garmentImageUrl = await uploadImage(garmentImage);
+
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
           user_id: user.id,
-          model_image_url: modelImage,
-          garment_image_url: garmentImage,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
           category: category as 'top' | 'bottom' | 'full-body',
           performance_mode: performanceMode as 'performance' | 'balanced' | 'quality',
           num_samples: numSamples,
@@ -152,8 +174,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          modelImage,
-          garmentImage,
+          modelImage: modelImageUrl,
+          garmentImage: garmentImageUrl,
           category,
           userId: user.id,
         }),
