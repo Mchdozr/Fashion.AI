@@ -60,8 +60,13 @@ Deno.serve(async (req) => {
     }
 
     // Call FashnAI API
-    console.log('Calling FashnAI API...');
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/run', {
+    console.log('Calling FashnAI API with params:', {
+      model_image: modelImage.substring(0, 50) + '...',
+      garment_image: garmentImage.substring(0, 50) + '...',
+      category
+    });
+
+    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,26 +75,36 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model_image: modelImage,
         garment_image: garmentImage,
-        category: category
+        category: category,
+        webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
       }),
     });
 
     if (!fashnResponse.ok) {
       const errorData = await fashnResponse.json()
         .catch(() => ({ message: fashnResponse.statusText }));
-      console.error('FashnAI API error:', errorData);
+      console.error('FashnAI API error:', {
+        status: fashnResponse.status,
+        statusText: fashnResponse.statusText,
+        error: errorData
+      });
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
     const fashnData = await fashnResponse.json();
     console.log('FashnAI response:', fashnData);
 
+    if (!fashnData.task_id) {
+      console.error('No task_id in response:', fashnData);
+      throw new Error('No task_id received from FashnAI API');
+    }
+
     // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
       .update({ 
         status: 'processing',
-        task_id: fashnData.id
+        task_id: fashnData.task_id
       })
       .eq('user_id', user.id)
       .eq('status', 'pending')
@@ -104,7 +119,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        taskId: fashnData.id 
+        taskId: fashnData.task_id 
       }),
       {
         status: 200,
