@@ -203,7 +203,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
           category,
-          userId: user.id,
         }),
       });
 

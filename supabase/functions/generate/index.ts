@@ -18,7 +18,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
-  // Log request details
   console.log('Request received:', {
     method: req.method,
     url: req.url,
@@ -38,7 +37,6 @@ Deno.serve(async (req) => {
       throw new Error('Missing Authorization header');
     }
 
-    // Log auth header (excluding token)
     console.log('Auth header present:', !!authHeader);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -55,36 +53,15 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     console.log('Request body:', body);
 
-    const { modelImage, garmentImage, category, userId } = body;
+    const { modelImage, garmentImage, category } = body;
 
-    if (!modelImage || !garmentImage || !category || !userId) {
+    if (!modelImage || !garmentImage || !category) {
       throw new Error('Missing required parameters');
     }
 
-    if (userId !== user.id) {
-      throw new Error('User ID mismatch');
-    }
-
-    // Get pending generation
-    const { data: pendingGeneration, error: fetchError } = await supabase
-      .from('generations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (fetchError) {
-      console.error('Fetch error:', fetchError);
-      throw new Error('Failed to fetch pending generation');
-    }
-
-    console.log('Pending generation:', pendingGeneration);
-
     // Call FashnAI API
     console.log('Calling FashnAI API...');
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
+    const fashnResponse = await fetch('https://api.fashn.ai/v1/run', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,8 +70,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model_image: modelImage,
         garment_image: garmentImage,
-        category: category,
-        webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
+        category: category
       }),
     });
 
@@ -108,30 +84,27 @@ Deno.serve(async (req) => {
     const fashnData = await fashnResponse.json();
     console.log('FashnAI response:', fashnData);
 
-    if (!fashnData.task_id) {
-      throw new Error('No task_id received from FashnAI API');
-    }
-
-    // Update generation with task ID
+    // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
       .update({ 
-        task_id: fashnData.task_id,
-        status: 'processing'
+        status: 'processing',
+        task_id: fashnData.id
       })
-      .eq('id', pendingGeneration.id);
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (updateError) {
       console.error('Update error:', updateError);
-      throw new Error('Failed to update generation with task_id');
+      throw new Error('Failed to update generation status');
     }
-
-    console.log('Generation updated successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        taskId: fashnData.task_id 
+        taskId: fashnData.id 
       }),
       {
         status: 200,
