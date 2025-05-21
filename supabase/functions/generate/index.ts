@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       throw new Error('Invalid user ID or user not found');
     }
 
+    // Call Fashn AI API
     const response = await fetch('https://api.fashn.ai/v1/run', {
       method: 'POST',
       headers: {
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
       throw new Error(data.message || 'Failed to start generation');
     }
 
+    // Update generation status and task_id
     const { data: generation, error } = await supabase
       .from('generations')
       .update({ 

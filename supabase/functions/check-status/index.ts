@@ -25,6 +25,18 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
+    // Get the generation record first
+    const { data: generation, error: generationError } = await supabase
+      .from('generations')
+      .select('*')
+      .eq('task_id', taskId)
+      .single();
+
+    if (generationError) {
+      throw new Error('Generation not found');
+    }
+
+    // Check status from Fashn AI API
     const response = await fetch(`https://api.fashn.ai/v1/status/${taskId}`, {
       headers: {
         'Authorization': `Bearer ${FASHN_API_KEY}`,
@@ -37,32 +49,32 @@ Deno.serve(async (req) => {
       throw new Error(data.message || 'Failed to check status');
     }
 
+    let updateData = {};
+
     if (data.status === 'completed' && data.result_url) {
-      // Update generation with result URL and completed status
-      const { error: updateError } = await supabase
-        .from('generations')
-        .update({ 
-          status: 'completed',
-          result_image_url: data.result_url
-        })
-        .eq('task_id', taskId);
-
-      if (updateError) {
-        throw updateError;
-      }
+      updateData = {
+        status: 'completed',
+        result_image_url: data.result_url
+      };
     } else if (data.status === 'failed') {
-      // Update generation with failed status
-      const { error: updateError } = await supabase
-        .from('generations')
-        .update({ 
-          status: 'failed',
-          result_image_url: null
-        })
-        .eq('task_id', taskId);
+      updateData = {
+        status: 'failed',
+        result_image_url: null
+      };
+    } else {
+      updateData = {
+        status: data.status
+      };
+    }
 
-      if (updateError) {
-        throw updateError;
-      }
+    // Update generation with new status and result URL if available
+    const { error: updateError } = await supabase
+      .from('generations')
+      .update(updateData)
+      .eq('task_id', taskId);
+
+    if (updateError) {
+      throw updateError;
     }
 
     return new Response(
@@ -79,8 +91,13 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Status check error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: error instanceof Error ? error.stack : undefined
+      }),
       {
         status: 400,
         headers: {
