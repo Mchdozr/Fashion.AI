@@ -26,28 +26,11 @@ Deno.serve(async (req) => {
 
     // Validate required parameters
     if (!modelImage || !garmentImage || !category || !userId) {
-      throw new Error('Missing required parameters: modelImage, garmentImage, category, and userId are required');
+      throw new Error('Missing required parameters');
     }
 
-    // Validate category
-    const validCategories = ['top', 'bottom', 'full-body'];
-    if (!validCategories.includes(category)) {
-      throw new Error(`Invalid category. Must be one of: ${validCategories.join(', ')}`);
-    }
-
-    // Verify user exists
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !user) {
-      throw new Error('Invalid user ID or user not found');
-    }
-
-    // Call Fashn AI API
-    const response = await fetch('https://api.fashn.ai/v1/run', {
+    // Call Fashn AI API with proper error handling
+    const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,15 +43,16 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('Fashn AI API error:', data);
-      throw new Error(data.message || 'Failed to start generation');
+      const errorData = await response.json();
+      console.error('FashnAI API error:', errorData);
+      throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
-    // Update generation status and task_id
-    const { data: generation, error } = await supabase
+    const data = await response.json();
+
+    // Update generation with task ID
+    const { error: updateError } = await supabase
       .from('generations')
       .update({ 
         task_id: data.id,
@@ -77,17 +61,14 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
-      .limit(1)
-      .select()
-      .single();
+      .limit(1);
 
-    if (error) {
-      console.error('Supabase update error:', error);
-      throw error;
+    if (updateError) {
+      throw updateError;
     }
 
     return new Response(
-      JSON.stringify({ success: true, taskId: data.id, generation }),
+      JSON.stringify({ success: true, taskId: data.id }),
       {
         headers: {
           'Content-Type': 'application/json',
@@ -95,13 +76,14 @@ Deno.serve(async (req) => {
         },
       }
     );
+
   } catch (error) {
     console.error('Generation error:', error);
+    
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message,
-        details: error instanceof Error ? error.stack : undefined
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
         status: 400,
