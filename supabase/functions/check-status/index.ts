@@ -37,21 +37,40 @@ Deno.serve(async (req) => {
       throw new Error(data.message || 'Failed to check status');
     }
 
-    // Update generation status in database
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({ 
-        status: data.status === 'completed' ? 'completed' : data.status === 'failed' ? 'failed' : 'processing',
-        result_image_url: data.result_url || null
-      })
-      .eq('task_id', taskId);
+    if (data.status === 'completed' && data.result_url) {
+      // Update generation with result URL and completed status
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: 'completed',
+          result_image_url: data.result_url
+        })
+        .eq('task_id', taskId);
 
-    if (updateError) {
-      throw updateError;
+      if (updateError) {
+        throw updateError;
+      }
+    } else if (data.status === 'failed') {
+      // Update generation with failed status
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: 'failed',
+          result_image_url: null
+        })
+        .eq('task_id', taskId);
+
+      if (updateError) {
+        throw updateError;
+      }
     }
 
     return new Response(
-      JSON.stringify({ success: true, status: data.status, resultUrl: data.result_url }),
+      JSON.stringify({ 
+        success: true, 
+        status: data.status, 
+        resultUrl: data.result_url 
+      }),
       {
         headers: {
           'Content-Type': 'application/json',
