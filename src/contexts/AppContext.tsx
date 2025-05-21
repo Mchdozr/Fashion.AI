@@ -108,7 +108,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGenerationProgress(0);
     
     try {
-      const { data: generation, error } = await supabase
+      const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
           user_id: user.id,
@@ -123,35 +123,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      setGenerationStatus('processing');
-      
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setGenerationProgress(prev => {
-          const newProgress = prev + Math.random() * 15;
-          return newProgress >= 100 ? 100 : newProgress;
-        });
-      }, 500);
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          modelImage,
+          garmentImage,
+          category,
+          userId: user.id,
+        }),
+      });
 
-      // Simulate API processing time
-      setTimeout(() => {
-        clearInterval(progressInterval);
-        setGenerationProgress(100);
-        setGenerationStatus('completed');
-        setResultImage(garmentImage);
-        fetchUserData(user.id);
-      }, 6000);
+      if (!response.ok) {
+        throw new Error('Failed to start generation');
+      }
+
+      const { taskId } = await response.json();
+
+      // Poll for status updates
+      const statusInterval = setInterval(async () => {
+        const { data: status } = await supabase
+          .from('generations')
+          .select('status, result_image_url')
+          .eq('task_id', taskId)
+          .single();
+
+        if (status) {
+          setGenerationStatus(status.status);
+          setGenerationProgress(status.status === 'completed' ? 100 : 50);
+
+          if (status.status === 'completed' && status.result_image_url) {
+            setResultImage(status.result_image_url);
+            clearInterval(statusInterval);
+            setIsGenerating(false);
+            await fetchUserData(user.id);
+          } else if (status.status === 'failed') {
+            clearInterval(statusInterval);
+            setIsGenerating(false);
+          }
+        }
+      }, 2000);
+
+      // Clear interval after 5 minutes (timeout)
+      setTimeout(() => clearInterval(statusInterval), 300000);
 
     } catch (error) {
       console.error('Error generating try-on:', error);
       setGenerationStatus('failed');
-    } finally {
-      setTimeout(() => {
-        setIsGenerating(false);
-        setGenerationProgress(0);
-      }, 500);
+      setIsGenerating(false);
     }
   };
 
