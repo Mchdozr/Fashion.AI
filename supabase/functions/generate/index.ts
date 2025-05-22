@@ -10,7 +10,11 @@ const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+if (!FASHN_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing required environment variables');
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,22 +28,25 @@ Deno.serve(async (req) => {
       throw new Error('Missing required parameters');
     }
 
-    if (!FASHN_API_KEY) {
-      throw new Error('FASHN_API_KEY is not configured');
-    }
-
-    // Get the latest pending generation
-    const { data: generation, error: fetchError } = await supabase
+    // Insert new generation record
+    const { data: generation, error: insertError } = await supabase
       .from('generations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
+      .insert({
+        user_id: userId,
+        model_image_url: modelImage,
+        garment_image_url: garmentImage,
+        category,
+        status: 'pending',
+        performance_mode: 'balanced', // Default value
+        num_samples: 1, // Default value
+        seed: Math.floor(Math.random() * 1000000),
+        created_at: new Date().toISOString()
+      })
+      .select()
       .single();
 
-    if (fetchError) {
-      throw new Error('Failed to fetch pending generation');
+    if (insertError) {
+      throw new Error(`Failed to create generation record: ${insertError.message}`);
     }
 
     // Call Fashn AI API
@@ -52,14 +59,14 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model_image: modelImage,
         garment_image: garmentImage,
-        category: category,
+        category,
         webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'FashnAI API request failed');
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(`FashnAI API error: ${errorData.message || response.statusText}`);
     }
 
     const data = await response.json();
@@ -78,11 +85,15 @@ Deno.serve(async (req) => {
       .eq('id', generation.id);
 
     if (updateError) {
-      throw new Error('Failed to update generation with task_id');
+      throw new Error(`Failed to update generation with task_id: ${updateError.message}`);
     }
 
     return new Response(
-      JSON.stringify({ success: true, taskId: data.task_id }),
+      JSON.stringify({ 
+        success: true, 
+        taskId: data.task_id,
+        generationId: generation.id 
+      }),
       {
         headers: {
           'Content-Type': 'application/json',
@@ -92,13 +103,15 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: errorMessage
       }),
       {
-        status: error instanceof Error && error.message.includes('not configured') ? 500 : 400,
+        status: 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
