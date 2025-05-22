@@ -42,12 +42,19 @@ Deno.serve(async (req) => {
       throw new Error(`Task ID ${taskId} not found in database`);
     }
 
-    // Implement retry logic for Fashn AI API
-    let retries = 3;
+    // Implement retry logic for Fashn AI API with increased delays
+    let retries = 5; // Increased from 3 to 5
     let lastError = null;
+    const INITIAL_DELAY = 3000; // 3 seconds initial delay
+    const RETRY_DELAY = 3000; // 3 seconds between retries
+
+    // Initial delay before first API call
+    await delay(INITIAL_DELAY);
 
     while (retries > 0) {
       try {
+        console.log(`Attempting Fashn AI API call for task ${taskId}, attempt ${6 - retries}`);
+        
         const response = await fetch(`https://api.fashn.ai/v1/run/${taskId}`, {
           headers: {
             'Authorization': `Bearer ${FASHN_API_KEY}`,
@@ -55,13 +62,13 @@ Deno.serve(async (req) => {
         });
 
         const responseText = await response.text();
-        console.log(`Attempt ${4 - retries}: Fashn AI raw response:`, responseText);
+        console.log(`Attempt ${6 - retries}: Fashn AI raw response:`, responseText);
 
         if (response.status === 404) {
-          console.log(`Task ${taskId} not found on Fashn AI, retrying in 2 seconds...`);
-          await delay(2000);
+          console.log(`Task ${taskId} not found on Fashn AI, retrying in ${RETRY_DELAY}ms...`);
+          await delay(RETRY_DELAY);
           retries--;
-          lastError = new Error(`Task not found on Fashn AI after attempt ${4 - retries}`);
+          lastError = new Error(`Task not found on Fashn AI after attempt ${6 - retries}`);
           continue;
         }
 
@@ -117,9 +124,11 @@ Deno.serve(async (req) => {
         );
       } catch (error) {
         lastError = error;
+        console.error(`Attempt ${6 - retries} failed:`, error);
+        
         if (retries > 1) {
-          console.log(`Attempt failed, retrying in 2 seconds... (${retries - 1} attempts remaining)`);
-          await delay(2000);
+          console.log(`Retrying in ${RETRY_DELAY}ms... (${retries - 1} attempts remaining)`);
+          await delay(RETRY_DELAY);
           retries--;
         } else {
           break;

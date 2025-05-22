@@ -140,6 +140,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
       statusUrl.searchParams.append('taskId', taskId);
 
+      console.log(`Checking status for task ID: ${taskId}`);
+
       const response = await fetch(statusUrl, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -159,6 +161,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           statusText: response.statusText,
           errorData
         });
+        
+        if (errorData.error?.includes('Task not found')) {
+          return { status: 'not_found' };
+        }
+        
         throw new Error(errorData.error || `Status check failed: ${response.statusText}`);
       }
 
@@ -199,8 +206,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     let statusInterval: number | undefined;
     let retryCount = 0;
-    const MAX_RETRIES = 5;
-    const RETRY_DELAY = 2000;
+    const MAX_RETRIES = 10; // Increased from 5 to 10
+    const INITIAL_DELAY = 5000; // 5 seconds initial delay
+    const RETRY_DELAY = 5000; // 5 seconds between retries
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -266,6 +274,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error('Failed to update task ID in database');
       }
 
+      // Initial delay before first status check
+      await delay(INITIAL_DELAY);
+
       statusInterval = window.setInterval(async () => {
         try {
           const { status, resultUrl } = await checkGenerationStatus(taskId);
@@ -312,7 +323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Add delay between retries
           await delay(RETRY_DELAY);
         }
-      }, 2000);
+      }, RETRY_DELAY);
 
       // Clear interval after 5 minutes (timeout)
       setTimeout(() => {
