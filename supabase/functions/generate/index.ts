@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     console.log('Request body:', body);
 
-    const { modelImage, garmentImage, category } = body;
+    const { modelImage, garmentImage, category, generationId } = body;
 
-    if (!modelImage || !garmentImage || !category) {
+    if (!modelImage || !garmentImage || !category || !generationId) {
       throw new Error('Missing required parameters');
     }
 
@@ -84,27 +84,43 @@ Deno.serve(async (req) => {
     const fashnData = await fashnResponse.json();
     console.log('FashnAI response:', fashnData);
 
-    // Update generation status
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({ 
-        status: 'processing',
-        task_id: fashnData.id
-      })
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // If we get an immediate result, update the generation
+    if (fashnData.status === 'completed' && fashnData.output && fashnData.output.length > 0) {
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: 'completed',
+          result_image_url: fashnData.output[0],
+          task_id: fashnData.id
+        })
+        .eq('id', generationId);
 
-    if (updateError) {
-      console.error('Update error:', updateError);
-      throw new Error('Failed to update generation status');
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error('Failed to update generation with result');
+      }
+    } else {
+      // Otherwise just update the task ID and status
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: 'processing',
+          task_id: fashnData.id
+        })
+        .eq('id', generationId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error('Failed to update generation status');
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        taskId: fashnData.id 
+        taskId: fashnData.id,
+        status: fashnData.status,
+        resultUrl: fashnData.output?.[0]
       }),
       {
         status: 200,
