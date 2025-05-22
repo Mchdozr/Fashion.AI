@@ -32,12 +32,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Map internal categories to API categories
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
   'full-body': 'one-pieces'
 } as const;
+
+// Add delay utility function
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modelImage, setModelImage] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
-  const checkGenerationStatus = async (taskId: string) => {
+  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
@@ -197,7 +199,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     let statusInterval: number | undefined;
     let retryCount = 0;
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY = 2000;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -206,7 +209,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
-      // Map the internal category to the API category
       const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
       if (!apiCategory) {
         throw new Error(`Invalid category: ${category}`);
@@ -253,9 +255,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { taskId } = await response.json();
       if (!taskId) throw new Error('No task ID received from generation endpoint');
 
+      // Update the generation with the task ID
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ task_id: taskId })
+        .eq('id', generation.id);
+
+      if (updateError) {
+        console.error('Failed to update task ID:', updateError);
+        throw new Error('Failed to update task ID in database');
+      }
+
       statusInterval = window.setInterval(async () => {
         try {
           const { status, resultUrl } = await checkGenerationStatus(taskId);
+          
+          if (status === 'not_found') {
+            retryCount++;
+            console.log(`Task not found, retry ${retryCount}/${MAX_RETRIES}`);
+            if (retryCount >= MAX_RETRIES) {
+              clearInterval(statusInterval);
+              setIsGenerating(false);
+              setGenerationStatus('failed');
+              throw new Error(`Status check failed after ${MAX_RETRIES} retries`);
+            }
+            return;
+          }
+          
           retryCount = 0; // Reset retry count on successful check
           
           setGenerationStatus(status);
@@ -282,6 +308,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setGenerationStatus('failed');
             throw new Error(`Status check failed after ${MAX_RETRIES} retries`);
           }
+          
+          // Add delay between retries
+          await delay(RETRY_DELAY);
         }
       }, 2000);
 
