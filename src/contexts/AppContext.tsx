@@ -5,7 +5,6 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
-// API category mapping
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -222,9 +221,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           if (statusData.status === 'completed' && statusData.output?.[0]) {
             clearInterval(pollInterval);
+            const resultUrl = statusData.output[0];
             setGenerationStatus('completed');
             setGenerationProgress(100);
-            setResultImage(statusData.output[0]);
+            setResultImage(resultUrl);
             setIsGenerating(false);
 
             // Update generation record with result URL
@@ -232,13 +232,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.output[0],
+                result_image_url: resultUrl,
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
 
             if (updateError) {
               console.error('Error updating generation with result:', updateError);
+              throw updateError;
             }
 
             // Refresh user data to get updated credits
