@@ -17,10 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const data = await req.json();
-    console.log('Webhook received:', data);
-
-    const { task_id, status, output } = data;
+    const { task_id, status, result_url } = await req.json();
 
     if (!task_id) {
       throw new Error('Task ID is required');
@@ -28,7 +25,7 @@ Deno.serve(async (req) => {
 
     const updateData = {
       status,
-      result_image_url: output && output.length > 0 ? output[0] : null
+      ...(result_url && { result_image_url: result_url })
     };
 
     const { error: updateError } = await supabase
@@ -37,8 +34,7 @@ Deno.serve(async (req) => {
       .eq('task_id', task_id);
 
     if (updateError) {
-      console.error('Webhook update error:', updateError);
-      throw updateError;
+      throw new Error('Failed to update generation status');
     }
 
     return new Response(
@@ -51,7 +47,6 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 

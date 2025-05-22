@@ -4,70 +4,46 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400',
 };
 
-const FASHN_API_KEY = 'fa-CiroGfKMHu6D-RSKwu7ZtZ67E6qySH7AOAM1l';
+const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Required environment variables are not set');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 Deno.serve(async (req) => {
-  console.log('Request received:', {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries())
-  });
-
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
-    }
+    const { modelImage, garmentImage, category, userId } = await req.json();
 
-    console.log('Auth header present:', !!authHeader);
-
-    // Get the token without the 'Bearer ' prefix
-    const token = authHeader.replace('Bearer ', '');
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      throw new Error('Unauthorized');
-    }
-
-    console.log('User authenticated:', user.id);
-
-    const body = await req.json().catch(() => ({}));
-    console.log('Request body:', body);
-
-    const { modelImage, garmentImage, category } = body;
-
-    if (!modelImage || !garmentImage || !category) {
+    if (!modelImage || !garmentImage || !category || !userId) {
       throw new Error('Missing required parameters');
     }
 
-    // Call FashnAI API
-    console.log('Calling FashnAI API with params:', {
-      model_image: modelImage.substring(0, 50) + '...',
-      garment_image: garmentImage.substring(0, 50) + '...',
-      category
-    });
+    if (!FASHN_API_KEY) {
+      throw new Error('FASHN_API_KEY is not configured');
+    }
 
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
+    // Get the latest pending generation
+    const { data: generation, error: fetchError } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError) {
+      throw new Error('Failed to fetch pending generation');
+    }
+
+    // Call Fashn AI API
+    const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,49 +57,33 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (!fashnResponse.ok) {
-      const errorData = await fashnResponse.json()
-        .catch(() => ({ message: fashnResponse.statusText }));
-      console.error('FashnAI API error:', {
-        status: fashnResponse.status,
-        statusText: fashnResponse.statusText,
-        error: errorData
-      });
+    if (!response.ok) {
+      const errorData = await response.json();
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
-    const fashnData = await fashnResponse.json();
-    console.log('FashnAI response:', fashnData);
+    const data = await response.json();
 
-    if (!fashnData.task_id) {
-      console.error('No task_id in response:', fashnData);
+    if (!data.task_id) {
       throw new Error('No task_id received from FashnAI API');
     }
 
-    // Update generation status
+    // Update generation with task ID
     const { error: updateError } = await supabase
       .from('generations')
       .update({ 
-        status: 'processing',
-        task_id: fashnData.task_id
+        task_id: data.task_id,
+        status: 'processing'
       })
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .eq('id', generation.id);
 
     if (updateError) {
-      console.error('Update error:', updateError);
-      throw new Error('Failed to update generation status');
+      throw new Error('Failed to update generation with task_id');
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        taskId: fashnData.task_id 
-      }),
+      JSON.stringify({ success: true, taskId: data.task_id }),
       {
-        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
@@ -132,15 +92,13 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Generation error:', error);
-    
     return new Response(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 400,
+        status: error instanceof Error && error.message.includes('not configured') ? 500 : 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
