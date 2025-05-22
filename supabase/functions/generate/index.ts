@@ -59,6 +59,21 @@ Deno.serve(async (req) => {
       throw new Error('Missing required parameters');
     }
 
+    // Get the latest pending generation
+    const { data: pendingGeneration, error: fetchError } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching pending generation:', fetchError);
+      throw new Error('Failed to fetch pending generation');
+    }
+
     // Call FashnAI API
     console.log('Calling FashnAI API...');
     const fashnResponse = await fetch('https://api.fashn.ai/v1/run', {
@@ -84,17 +99,20 @@ Deno.serve(async (req) => {
     const fashnData = await fashnResponse.json();
     console.log('FashnAI response:', fashnData);
 
+    // If we get an immediate result, update with both status and result
+    const updateData = {
+      status: fashnData.status,
+      task_id: fashnData.id,
+      ...(fashnData.status === 'completed' && fashnData.output?.[0] && {
+        result_image_url: fashnData.output[0]
+      })
+    };
+
     // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
-      .update({ 
-        status: 'processing',
-        task_id: fashnData.id
-      })
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .update(updateData)
+      .eq('id', pendingGeneration.id);
 
     if (updateError) {
       console.error('Update error:', updateError);
