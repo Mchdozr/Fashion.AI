@@ -5,6 +5,18 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
+// API category mapping
+const categoryMapping = {
+  'top': 'tops',
+  'bottom': 'bottoms',
+  'full-body': 'one-pieces'
+} as const;
+
+const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_URL = 'https://api.fashn.ai/v1';
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface AppContextType {
   modelImage: string | null;
   setModelImage: (url: string) => void;
@@ -31,18 +43,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-// API category mapping
-const categoryMapping = {
-  'top': 'tops',
-  'bottom': 'bottoms',
-  'full-body': 'one-pieces'
-} as const;
-
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modelImage, setModelImage] = useState<string | null>(null);
@@ -220,11 +220,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const statusData = await statusResponse.json();
           console.log('Status check response:', statusData);
 
-          if (statusData.status === 'completed' && statusData.result_url) {
+          if (statusData.status === 'completed' && statusData.output?.[0]) {
             clearInterval(pollInterval);
             setGenerationStatus('completed');
             setGenerationProgress(100);
-            setResultImage(statusData.result_url);
+            setResultImage(statusData.output[0]);
             setIsGenerating(false);
 
             // Update generation record
@@ -232,7 +232,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.result_url
+                result_image_url: statusData.output[0]
               })
               .eq('id', generation.id);
 
