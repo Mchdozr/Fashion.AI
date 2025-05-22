@@ -128,29 +128,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No session found');
+    if (!session) throw new Error('No active session found');
 
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-    });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to check status');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error || `Status check failed with status ${response.status}`);
+      }
+
+      const data = await response.json().catch(() => null);
+      if (!data) {
+        throw new Error('Invalid response from status check endpoint');
+      }
+
+      console.log('Status check response:', data);
+
+      if (!data.success) {
+        throw new Error(data?.error || 'Status check failed');
+      }
+
+      return {
+        status: data.status,
+        resultUrl: data.resultUrl
+      };
+    } catch (error) {
+      console.error('Status check error:', error);
+      throw new Error(`Failed to check status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const data = await response.json();
-    console.log('Status check response:', data);
-
-    if (!data.success) {
-      throw new Error(data.error || 'Status check failed');
-    }
-
-    return {
-      status: data.status,
-      resultUrl: data.resultUrl
-    };
   };
 
   const startGeneration = async () => {
