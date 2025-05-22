@@ -13,6 +13,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   if (!isOpen) return null;
 
@@ -20,33 +21,47 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setSuccess(false);
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-        });
-        if (error) {
-          if (error.message === 'User already registered') {
-            setError('This email is already registered. Please sign in instead.');
-            setIsSignUp(false);
-            setLoading(false);
-            return;
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
           }
-          throw error;
+        });
+
+        if (error) {
+          if (error.message.includes('already registered')) {
+            setError('Bu email zaten kayıtlı. Lütfen giriş yapın.');
+            setIsSignUp(false);
+          } else {
+            throw error;
+          }
+        } else if (data.user) {
+          setSuccess(true);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
-      }
 
-      onClose();
+        if (error) {
+          if (error.message.includes('Invalid login')) {
+            setError('Email veya şifre hatalı');
+          } else {
+            throw error;
+          }
+        } else if (data.user) {
+          onClose();
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Auth error:', err);
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -63,76 +78,94 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         </button>
 
         <h2 className="text-xl font-bold mb-6">
-          {isSignUp ? 'Create an account' : 'Sign in to your account'}
+          {isSignUp ? 'Hesap Oluştur' : 'Giriş Yap'}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
-              required
-            />
+        {success ? (
+          <div className="text-center">
+            <p className="text-green-400 mb-4">Hesabınız başarıyla oluşturuldu!</p>
+            <button
+              onClick={() => setIsSignUp(false)}
+              className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
+            >
+              Şimdi giriş yapın
+            </button>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
+                required
+              />
+            </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
-              required
-            />
-          </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+                Şifre
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
+                required
+              />
+            </div>
 
-          {error && (
-            <div className="text-red-400 text-sm">{error}</div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#F8D74B] hover:bg-[#f9df6e] text-black font-medium py-2 rounded-md transition-colors duration-150 disabled:bg-gray-600 disabled:text-gray-400"
-          >
-            {loading ? 'Loading...' : isSignUp ? 'Sign up' : 'Sign in'}
-          </button>
-
-          <div className="text-center text-sm text-gray-400">
-            {isSignUp ? (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(false)}
-                  className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
-                >
-                  Sign in
-                </button>
-              </>
-            ) : (
-              <>
-                Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(true)}
-                  className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
-                >
-                  Sign up
-                </button>
-              </>
+            {error && (
+              <div className="text-red-400 text-sm">{error}</div>
             )}
-          </div>
-        </form>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#F8D74B] hover:bg-[#f9df6e] text-black font-medium py-2 rounded-md transition-colors duration-150 disabled:bg-gray-600 disabled:text-gray-400"
+            >
+              {loading ? 'İşleniyor...' : isSignUp ? 'Kayıt Ol' : 'Giriş Yap'}
+            </button>
+
+            <div className="text-center text-sm text-gray-400">
+              {isSignUp ? (
+                <>
+                  Zaten hesabınız var mı?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(false);
+                      setError(null);
+                    }}
+                    className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
+                  >
+                    Giriş Yap
+                  </button>
+                </>
+              ) : (
+                <>
+                  Hesabınız yok mu?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(true);
+                      setError(null);
+                    }}
+                    className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
+                  >
+                    Kayıt Ol
+                  </button>
+                </>
+              )}
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
