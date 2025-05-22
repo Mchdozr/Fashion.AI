@@ -38,7 +38,6 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
-// Add delay utility function
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -98,26 +97,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const uploadImage = async (imageDataUrl: string): Promise<string> => {
-    try {
-      const response = await fetch(imageDataUrl);
-      const blob = await response.blob();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      
-      const { data, error } = await supabase.storage
-        .from('images')
-        .upload(fileName, blob);
+    const response = await fetch(imageDataUrl);
+    const blob = await response.blob();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+    
+    const { data, error } = await supabase.storage
+      .from('images')
+      .upload(fileName, blob);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('images')
-        .getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage
+      .from('images')
+      .getPublicUrl(fileName);
 
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw new Error('Failed to upload image');
-    }
+    return publicUrl;
   };
 
   const generateAIModel = () => {
@@ -133,69 +127,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session found');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No session found');
 
-      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
-      statusUrl.searchParams.append('taskId', taskId);
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
 
-      console.log(`Checking status for task ID: ${taskId}`);
-
-      const response = await fetch(statusUrl, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || response.statusText };
-        }
-        console.error('Status check response error:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
-        
-        if (errorData.error?.includes('Task not found')) {
-          return { status: 'not_found' };
-        }
-        
-        throw new Error(errorData.error || `Status check failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Status check response:', data);
-      
-      if (!data.success) {
-        console.error('Status check unsuccessful:', data);
-        throw new Error(data.error || 'Status check failed');
-      }
-
-      return { 
-        status: data.status, 
-        resultUrl: data.resultUrl 
-      };
-    } catch (error) {
-      console.error('Error checking status:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error('Failed to check status');
     }
+
+    const data = await response.json();
+    console.log('Status check response:', data);
+
+    if (!data.success) {
+      throw new Error(data.error || 'Status check failed');
+    }
+
+    return {
+      status: data.status,
+      resultUrl: data.resultUrl
+    };
   };
 
   const startGeneration = async () => {
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
-      console.error('Missing required data:', {
-        modelImage: !!modelImage,
-        garmentImage: !!garmentImage,
-        isModelReady,
-        category,
-        user: !!user
-      });
       throw new Error('Missing required data for generation');
     }
     
@@ -204,12 +163,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setGenerationProgress(0);
     setResultImage(null);
     
-    let statusInterval: number | undefined;
-    let retryCount = 0;
-    const MAX_RETRIES = 10; // Increased from 5 to 10
-    const INITIAL_DELAY = 5000; // 5 seconds initial delay
-    const RETRY_DELAY = 5000; // 5 seconds between retries
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
@@ -239,9 +192,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
-      
-      const response = await fetch(generateUrl, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -255,85 +206,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-        console.error('Generation API error:', errorData);
-        throw new Error(errorData.error || `Failed to start generation: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start generation');
       }
 
       const { taskId } = await response.json();
-      if (!taskId) throw new Error('No task ID received from generation endpoint');
+      if (!taskId) throw new Error('No task ID received');
 
-      // Update the generation with the task ID
-      const { error: updateError } = await supabase
-        .from('generations')
-        .update({ task_id: taskId })
-        .eq('id', generation.id);
+      await delay(2000); // Initial delay before first status check
 
-      if (updateError) {
-        console.error('Failed to update task ID:', updateError);
-        throw new Error('Failed to update task ID in database');
-      }
-
-      // Initial delay before first status check
-      await delay(INITIAL_DELAY);
-
-      statusInterval = window.setInterval(async () => {
+      const checkStatus = async () => {
         try {
           const { status, resultUrl } = await checkGenerationStatus(taskId);
-          
-          if (status === 'not_found') {
-            retryCount++;
-            console.log(`Task not found, retry ${retryCount}/${MAX_RETRIES}`);
-            if (retryCount >= MAX_RETRIES) {
-              clearInterval(statusInterval);
-              setIsGenerating(false);
-              setGenerationStatus('failed');
-              throw new Error(`Status check failed after ${MAX_RETRIES} retries`);
-            }
-            return;
-          }
-          
-          retryCount = 0; // Reset retry count on successful check
           
           setGenerationStatus(status);
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
           if (status === 'completed' && resultUrl) {
-            console.log('Setting result image:', resultUrl);
             setResultImage(resultUrl);
-            clearInterval(statusInterval);
             setIsGenerating(false);
             await fetchUserData(user.id);
+            return true;
           } else if (status === 'failed') {
-            clearInterval(statusInterval);
             setIsGenerating(false);
             throw new Error('Generation failed');
           }
+          return false;
         } catch (error) {
           console.error('Error in status check:', error);
-          retryCount++;
-          
-          if (retryCount >= MAX_RETRIES) {
-            clearInterval(statusInterval);
-            setIsGenerating(false);
-            setGenerationStatus('failed');
-            throw new Error(`Status check failed after ${MAX_RETRIES} retries`);
-          }
-          
-          // Add delay between retries
-          await delay(RETRY_DELAY);
+          throw error;
         }
-      }, RETRY_DELAY);
+      };
+
+      // Poll for status every 2 seconds
+      const pollInterval = setInterval(async () => {
+        try {
+          const isComplete = await checkStatus();
+          if (isComplete) {
+            clearInterval(pollInterval);
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          setIsGenerating(false);
+          setGenerationStatus('failed');
+          console.error('Error polling status:', error);
+        }
+      }, 2000);
 
       // Clear interval after 5 minutes (timeout)
       setTimeout(() => {
-        if (statusInterval) {
-          clearInterval(statusInterval);
-          if (generationStatus !== 'completed') {
-            setGenerationStatus('failed');
-            setIsGenerating(false);
-            throw new Error('Generation timed out');
-          }
+        clearInterval(pollInterval);
+        if (generationStatus !== 'completed') {
+          setGenerationStatus('failed');
+          setIsGenerating(false);
         }
       }, 300000);
 
@@ -341,7 +266,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error('Error generating try-on:', error);
       setGenerationStatus('failed');
       setIsGenerating(false);
-      if (statusInterval) clearInterval(statusInterval);
       throw error;
     }
   };

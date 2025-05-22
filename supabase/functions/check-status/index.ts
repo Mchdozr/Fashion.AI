@@ -12,7 +12,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-// Add delay utility function for retries
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 Deno.serve(async (req) => {
@@ -30,122 +29,61 @@ Deno.serve(async (req) => {
 
     console.log(`Checking status for task: ${taskId}`);
 
-    // Verify task exists in database first
-    const { data: generation, error: dbError } = await supabase
-      .from('generations')
-      .select('*')
-      .eq('task_id', taskId)
-      .single();
+    const response = await fetch(`https://api.fashn.ai/v1/run/${taskId}`, {
+      headers: {
+        'Authorization': `Bearer ${FASHN_API_KEY}`,
+      },
+    });
 
-    if (dbError || !generation) {
-      console.error('Task not found in database:', taskId);
-      throw new Error(`Task ID ${taskId} not found in database`);
+    if (!response.ok) {
+      throw new Error(`Fashn AI API error: ${response.status} ${response.statusText}`);
     }
 
-    // Implement retry logic for Fashn AI API with increased delays
-    let retries = 5; // Increased from 3 to 5
-    let lastError = null;
-    const INITIAL_DELAY = 3000; // 3 seconds initial delay
-    const RETRY_DELAY = 3000; // 3 seconds between retries
+    const data = await response.json();
+    console.log('FashnAI response:', data);
 
-    // Initial delay before first API call
-    await delay(INITIAL_DELAY);
+    let status = data.status;
+    let resultUrl = null;
 
-    while (retries > 0) {
-      try {
-        console.log(`Attempting Fashn AI API call for task ${taskId}, attempt ${6 - retries}`);
-        
-        const response = await fetch(`https://api.fashn.ai/v1/run/${taskId}`, {
-          headers: {
-            'Authorization': `Bearer ${FASHN_API_KEY}`,
-          },
-        });
+    if (status === 'completed' && data.output && data.output.length > 0) {
+      resultUrl = data.output[0];
+      console.log('Result URL found:', resultUrl);
 
-        const responseText = await response.text();
-        console.log(`Attempt ${6 - retries}: Fashn AI raw response:`, responseText);
+      // Update the generation record with the result URL
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: status,
+          result_image_url: resultUrl
+        })
+        .eq('task_id', taskId);
 
-        if (response.status === 404) {
-          console.log(`Task ${taskId} not found on Fashn AI, retrying in ${RETRY_DELAY}ms...`);
-          await delay(RETRY_DELAY);
-          retries--;
-          lastError = new Error(`Task not found on Fashn AI after attempt ${6 - retries}`);
-          continue;
-        }
-
-        if (!response.ok) {
-          throw new Error(`Fashn AI API error: ${response.status} ${response.statusText}`);
-        }
-
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (error) {
-          console.error('Failed to parse Fashn AI response:', error);
-          throw new Error('Invalid response from Fashn AI API');
-        }
-
-        console.log('Parsed FashnAI status response:', data);
-
-        let status = data.status;
-        let resultUrl = null;
-
-        if (status === 'completed' && data.output && data.output.length > 0) {
-          resultUrl = data.output[0];
-          console.log('Result URL found:', resultUrl);
-
-          const { error: updateError } = await supabase
-            .from('generations')
-            .update({ 
-              status: status,
-              result_image_url: resultUrl
-            })
-            .eq('task_id', taskId);
-
-          if (updateError) {
-            console.error('Supabase status update error:', updateError);
-            throw new Error(`Failed to update generation status: ${updateError.message}`);
-          }
-
-          console.log('Successfully updated generation status in database');
-        }
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            status: status,
-            resultUrl: resultUrl
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders,
-            },
-          }
-        );
-      } catch (error) {
-        lastError = error;
-        console.error(`Attempt ${6 - retries} failed:`, error);
-        
-        if (retries > 1) {
-          console.log(`Retrying in ${RETRY_DELAY}ms... (${retries - 1} attempts remaining)`);
-          await delay(RETRY_DELAY);
-          retries--;
-        } else {
-          break;
-        }
+      if (updateError) {
+        console.error('Failed to update generation:', updateError);
+        throw new Error('Failed to update generation status');
       }
     }
 
-    // If we get here, all retries failed
-    throw lastError || new Error('Failed to check status after all retries');
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        status: status,
+        resultUrl: resultUrl
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      }
+    );
 
   } catch (error) {
     console.error('Status check error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: error instanceof Error ? error.stack : undefined
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
         status: 400,
