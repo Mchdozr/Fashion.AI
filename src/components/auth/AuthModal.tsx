@@ -34,9 +34,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         });
 
         if (error) {
-          if (error.message.includes('already registered')) {
-            setError('Bu email zaten kayıtlı. Lütfen giriş yapın.');
-            setIsSignUp(false);
+          if (error.message.includes('already registered') || error.message.includes('already exists')) {
+            setError('Bu email adresi zaten kayıtlı. Giriş yapmak için "Giriş Yap" butonuna tıklayın.');
           } else {
             throw error;
           }
