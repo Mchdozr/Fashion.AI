@@ -25,6 +25,8 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
+    console.log(`Checking status for task: ${taskId}`);
+
     // Check status from Fashn AI API
     const response = await fetch(`https://api.fashn.ai/v1/run/${taskId}`, {
       headers: {
@@ -32,12 +34,28 @@ Deno.serve(async (req) => {
       },
     });
 
+    // Log the raw response for debugging
+    const responseText = await response.text();
+    console.log('Raw Fashn AI response:', responseText);
+
     if (!response.ok) {
-      throw new Error('Failed to check status');
+      console.error('Fashn AI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        response: responseText
+      });
+      throw new Error(`Fashn AI API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    console.log('FashnAI status response:', data);
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      console.error('Failed to parse Fashn AI response:', error);
+      throw new Error('Invalid response from Fashn AI API');
+    }
+
+    console.log('Parsed FashnAI status response:', data);
 
     let status = data.status;
     let resultUrl = null;
@@ -56,9 +74,11 @@ Deno.serve(async (req) => {
         .eq('task_id', taskId);
 
       if (updateError) {
-        console.error('Status update error:', updateError);
-        throw updateError;
+        console.error('Supabase status update error:', updateError);
+        throw new Error(`Failed to update generation status: ${updateError.message}`);
       }
+
+      console.log('Successfully updated generation status in database');
     }
 
     return new Response(
@@ -79,7 +99,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: error instanceof Error ? error.stack : undefined
       }),
       {
         status: 400,

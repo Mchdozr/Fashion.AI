@@ -145,15 +145,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ 
-          error: response.statusText || 'Unknown error occurred'
-        }));
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || response.statusText };
+        }
+        console.error('Status check response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
         throw new Error(errorData.error || `Status check failed: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Status check response:', data);
       
       if (!data.success) {
+        console.error('Status check unsuccessful:', data);
         throw new Error(data.error || 'Status check failed');
       }
 
@@ -185,6 +196,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setResultImage(null);
     
     let statusInterval: number | undefined;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -243,6 +256,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       statusInterval = window.setInterval(async () => {
         try {
           const { status, resultUrl } = await checkGenerationStatus(taskId);
+          retryCount = 0; // Reset retry count on successful check
           
           setGenerationStatus(status);
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
@@ -259,11 +273,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Generation failed');
           }
         } catch (error) {
-          clearInterval(statusInterval);
-          setIsGenerating(false);
-          setGenerationStatus('failed');
-          console.error('Error in status check interval:', error);
-          throw error;
+          console.error('Error in status check:', error);
+          retryCount++;
+          
+          if (retryCount >= MAX_RETRIES) {
+            clearInterval(statusInterval);
+            setIsGenerating(false);
+            setGenerationStatus('failed');
+            throw new Error(`Status check failed after ${MAX_RETRIES} retries`);
+          }
         }
       }, 2000);
 
