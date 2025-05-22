@@ -126,32 +126,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
-  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No session found');
+  const checkGenerationStatus = async (generationId: string): Promise<{ status: string; resultUrl?: string }> => {
+    const { data, error } = await supabase
+      .from('generations')
+      .select('status, result_image_url')
+      .eq('id', generationId)
+      .single();
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-      console.log('Status check response:', data);
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Status check failed');
-      }
-
-      return {
-        status: data.status,
-        resultUrl: data.resultUrl
-      };
-    } catch (error) {
-      console.error('Status check error:', error);
-      throw new Error(error instanceof Error ? error.message : 'Failed to check status');
+    if (error) {
+      throw new Error(`Failed to check generation status: ${error.message}`);
     }
+
+    return {
+      status: data.status,
+      resultUrl: data.result_image_url
+    };
   };
 
   const startGeneration = async () => {
@@ -191,7 +180,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError || !generation) throw insertError || new Error('Failed to create generation record');
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
@@ -200,6 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          generationId: generation.id,
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
           category: apiCategory,
@@ -211,9 +201,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(errorData.error || 'Failed to start generation');
       }
 
-      const { taskId } = await response.json();
-      if (!taskId) throw new Error('No task ID received');
-
       await delay(2000); // Initial delay before first status check
 
       let retryCount = 0;
@@ -221,9 +208,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const checkStatus = async () => {
         try {
-          const { status, resultUrl } = await checkGenerationStatus(taskId);
+          const { status, resultUrl } = await checkGenerationStatus(generation.id);
           
-          setGenerationStatus(status);
+          setGenerationStatus(status as 'pending' | 'processing' | 'completed' | 'failed');
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
           if (status === 'completed' && resultUrl) {
