@@ -122,6 +122,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
     }
+
+    // Get the current session for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No active session found');
+    }
     
     setIsGenerating(true);
     setGenerationStatus('pending');
@@ -150,11 +156,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call generate function through Supabase Edge Function
+      // Call generate function through Supabase Edge Function with session token
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -172,14 +178,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const { taskId } = await response.json();
 
-      // Poll for status updates
+      // Poll for status updates with session token
       const pollStatus = async () => {
         try {
           const statusResponse = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`,
             {
               headers: {
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                'Authorization': `Bearer ${session.access_token}`,
               },
             }
           );
