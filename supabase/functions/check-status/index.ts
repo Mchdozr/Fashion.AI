@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
+const FASHN_API_KEY = 'fa-SrXFbsn4INbb-aXVejFdvMYdCfEPnVlcSkCZY';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -41,7 +41,6 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('FashnAI status response:', data);
 
     // Get the generation record
     const { data: generation, error: generationError } = await supabase
@@ -51,7 +50,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (generationError) {
-      console.error('Generation fetch error:', generationError);
       throw new Error('Generation not found');
     }
 
@@ -70,8 +68,7 @@ Deno.serve(async (req) => {
       .eq('task_id', taskId);
 
     if (updateError) {
-      console.error('Status update error:', updateError);
-      throw updateError;
+      throw new Error('Failed to update generation status');
     }
 
     return new Response(
@@ -89,7 +86,6 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Status check error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 

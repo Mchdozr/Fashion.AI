@@ -13,11 +13,14 @@ const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
   }
 
   try {
-    const { task_id, status, result_url } = await req.json();
+    const { task_id, status, output } = await req.json();
 
     if (!task_id) {
       throw new Error('Task ID is required');
@@ -25,7 +28,7 @@ Deno.serve(async (req) => {
 
     const updateData = {
       status,
-      ...(result_url && { result_image_url: result_url })
+      ...(output?.[0] && { result_image_url: output[0] })
     };
 
     const { error: updateError } = await supabase
@@ -34,13 +37,13 @@ Deno.serve(async (req) => {
       .eq('task_id', task_id);
 
     if (updateError) {
-      console.error('Webhook update error:', updateError);
-      throw updateError;
+      throw new Error('Failed to update generation status');
     }
 
     return new Response(
       JSON.stringify({ success: true }),
       {
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
@@ -48,7 +51,6 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
