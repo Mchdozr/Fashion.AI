@@ -4,50 +4,62 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400',
 };
 
-const FASHN_API_KEY = 'fa-lt7AjDCKf71y-gC6Nkdyc4gPv7h6YKmvcRxc7';
+const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Required environment variables are not set');
+if (!FASHN_API_KEY) {
+  console.error('FASHN_API_KEY is missing');
+  throw new Error('FASHN_API_KEY is not set in environment variables');
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
+    return new Response(null, {
       status: 204,
-      headers: corsHeaders 
+      headers: corsHeaders,
     });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
+    if (!req.body) {
+      throw new Error('Request body is empty');
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const { modelImage, garmentImage, category, userId } = await req.json();
+    console.log('Received request:', { modelImage, garmentImage, category, userId });
 
-    if (authError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    const body = await req.json();
-    const { modelImage, garmentImage, category, generationId } = body;
-
-    if (!modelImage || !garmentImage || !category || !generationId) {
+    // Validate required parameters
+    if (!modelImage || !garmentImage || !category || !userId) {
       throw new Error('Missing required parameters');
     }
 
-    // Call FashnAI API
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
+    // Get the latest pending generation
+    const { data: pendingGeneration, error: fetchError } = await supabase
+      .from('generations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // Ignore "no rows returned" error
+      console.error('Error fetching pending generation:', fetchError);
+      throw new Error('Failed to fetch pending generation');
+    }
+
+    if (!pendingGeneration?.id) {
+      throw new Error('No pending generation found');
+    }
+
+    // Call Fashn AI API
+    const response = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,135 +68,52 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model_image: modelImage,
         garment_image: garmentImage,
-        category: category
+        category: category,
+        webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
       }),
     });
 
-    if (!fashnResponse.ok) {
-      const errorData = await fashnResponse.json()
-        .catch(() => ({ message: fashnResponse.statusText }));
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('FashnAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
-    const fashnData = await fashnResponse.json();
-    console.log('FashnAI response:', fashnData);
+    const data = await response.json();
+    console.log('FashnAI API response:', data);
 
-    // Update generation with task ID immediately
-    const { error: taskUpdateError } = await supabase
+    if (!data.task_id) {
+      throw new Error('No task_id received from FashnAI API');
+    }
+
+    // Update generation with task ID
+    const { error: updateError } = await supabase
       .from('generations')
-      .update({
-        task_id: fashnData.id,
+      .update({ 
+        task_id: data.task_id,
         status: 'processing'
       })
-      .eq('id', generationId);
+      .eq('id', pendingGeneration.id);
 
-    if (taskUpdateError) {
-      throw new Error('Failed to update generation with task ID');
+    if (updateError) {
+      console.error('Error updating generation with task_id:', updateError);
+      throw new Error('Failed to update generation with task_id');
     }
 
-    // Check initial status
-    const statusResponse = await fetch(`https://api.fashn.ai/v1/requests/${fashnData.id}`, {
-      headers: {
-        'Authorization': `Bearer ${FASHN_API_KEY}`,
-      },
-    });
-
-    if (!statusResponse.ok) {
-      throw new Error('Failed to check initial status');
-    }
-
-    const statusData = await statusResponse.json();
-    console.log('Initial status check:', statusData);
-
-    // If we have an immediate result
-    if (statusData.status === 'completed' && statusData.output?.[0]) {
-      const resultUrl = statusData.output[0];
-      
-      // Update generation with result
-      const { error: resultUpdateError } = await supabase
-        .from('generations')
-        .update({
-          status: 'completed',
-          result_image_url: resultUrl
-        })
-        .eq('id', generationId);
-
-      if (resultUpdateError) {
-        throw new Error('Failed to update generation with result');
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          taskId: fashnData.id,
-          resultUrl: resultUrl
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        }
-      );
-    }
-
-    // Start polling for result
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const pollResponse = await fetch(`https://api.fashn.ai/v1/requests/${fashnData.id}`, {
+    return new Response(
+      JSON.stringify({ success: true, taskId: data.task_id }),
+      {
+        status: 200,
         headers: {
-          'Authorization': `Bearer ${FASHN_API_KEY}`,
+          'Content-Type': 'application/json',
+          ...corsHeaders,
         },
-      });
-
-      if (!pollResponse.ok) {
-        attempts++;
-        continue;
       }
-
-      const pollData = await pollResponse.json();
-      console.log('Status check:', { attempt: attempts + 1, status: pollData.status });
-
-      if (pollData.status === 'completed' && pollData.output?.[0]) {
-        const resultUrl = pollData.output[0];
-        
-        // Update generation with result
-        const { error: resultUpdateError } = await supabase
-          .from('generations')
-          .update({
-            status: 'completed',
-            result_image_url: resultUrl
-          })
-          .eq('id', generationId);
-
-        if (resultUpdateError) {
-          console.error('Failed to update final status:', resultUpdateError);
-          throw new Error('Failed to save result URL');
-        }
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            taskId: fashnData.id,
-            resultUrl: resultUrl
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders,
-            },
-          }
-        );
-      }
-
-      attempts++;
-    }
-
-    throw new Error('Generation timed out');
+    );
 
   } catch (error) {
     console.error('Generation error:', error);
@@ -195,7 +124,7 @@ Deno.serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 400,
+        status: error instanceof Error && error.message.includes('No pending generation') ? 404 : 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,

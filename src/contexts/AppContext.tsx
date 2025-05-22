@@ -32,14 +32,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const categoryMapping = {
-  'top': 'tops',
-  'bottom': 'bottoms',
-  'full-body': 'one-pieces'
-} as const;
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modelImage, setModelImage] = useState<string | null>(null);
   const [garmentImage, setGarmentImage] = useState<string | null>(null);
@@ -116,6 +108,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const generateAIModel = () => {
     if (!modelImage) return;
+    
     setIsModelGenerating(true);
     setIsModelReady(false);
     
@@ -125,28 +118,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
-  const checkGenerationStatus = async (generationId: string): Promise<{ status: string; resultUrl?: string }> => {
-    const { data, error } = await supabase
-      .from('generations')
-      .select('status, result_image_url')
-      .eq('id', generationId)
-      .single();
+  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl: string | null }> => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+      });
 
-    if (error) {
-      console.error('Error checking generation status:', error);
-      throw new Error(`Failed to check generation status: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to check status');
+      }
+
+      const data = await response.json();
+      return { 
+        status: data.status, 
+        resultUrl: data.resultUrl 
+      };
+    } catch (error) {
+      console.error('Error checking status:', error);
+      throw error;
     }
-
-    if (!data) {
-      console.error('No data returned from status check');
-      throw new Error('No generation data found');
-    }
-
-    console.log('Generation status check:', { generationId, status: data.status });
-    return {
-      status: data.status,
-      resultUrl: data.result_image_url
-    };
   };
 
   const startGeneration = async () => {
@@ -157,19 +150,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
-    setResultImage(null);
     
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session found');
-
+      // Upload images to Supabase Storage
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
-
-      const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
-      if (!apiCategory) {
-        throw new Error(`Invalid category: ${category}`);
-      }
 
       const { data: generation, error: insertError } = await supabase
         .from('generations')
@@ -186,23 +171,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select()
         .single();
 
-      if (insertError || !generation) {
-        throw insertError || new Error('Failed to create generation record');
-      }
-
-      console.log('Starting generation:', { generationId: generation.id });
+      if (insertError) throw insertError;
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          generationId: generation.id,
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
-          category: apiCategory,
+          category,
+          userId: user.id,
         }),
       });
 
@@ -211,81 +192,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(errorData.error || 'Failed to start generation');
       }
 
-      const { taskId, resultUrl } = await response.json();
-      console.log('Generation initiated:', { taskId, generationId: generation.id });
-
-      // If we got an immediate result, update the UI
-      if (resultUrl) {
-        setResultImage(resultUrl);
-        setGenerationStatus('completed');
-        setGenerationProgress(100);
-        setIsGenerating(false);
-        await fetchUserData(user.id);
-        return;
-      }
-
-      // Otherwise poll for updates
-      let retryCount = 0;
-      const maxRetries = 60; // 2 minutes total (2 second intervals)
-      let pollInterval: NodeJS.Timeout;
+      const { taskId } = await response.json();
+      
+      let attempts = 0;
+      const maxAttempts = 30; // 1 minute timeout (2s * 30)
+      const pollInterval = 2000; // 2 seconds
 
       const pollStatus = async () => {
+        if (attempts >= maxAttempts) {
+          throw new Error('Generation timed out');
+        }
+
+        attempts++;
+
         try {
-          const { status, resultUrl } = await checkGenerationStatus(generation.id);
+          const { status, resultUrl } = await checkGenerationStatus(taskId);
           
+          setGenerationStatus(status as 'pending' | 'processing' | 'completed' | 'failed');
+          setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
+
           if (status === 'completed' && resultUrl) {
             setResultImage(resultUrl);
-            setGenerationStatus('completed');
-            setGenerationProgress(100);
             setIsGenerating(false);
             await fetchUserData(user.id);
-            return true;
+            return;
           } else if (status === 'failed') {
             throw new Error('Generation failed');
           }
 
-          setGenerationStatus(status as 'pending' | 'processing' | 'completed' | 'failed');
-          setGenerationProgress(status === 'processing' ? 50 : 25);
-
-          if (++retryCount >= maxRetries) {
-            throw new Error('Generation timed out after 2 minutes');
-          }
-
-          return false;
+          // Continue polling
+          setTimeout(pollStatus, pollInterval);
         } catch (error) {
-          console.error('Error in poll status:', error);
+          console.error('Error in status check:', error);
+          setGenerationStatus('failed');
+          setIsGenerating(false);
           throw error;
         }
       };
 
-      // Initial delay before polling
-      await delay(2000);
-
       // Start polling
-      pollInterval = setInterval(async () => {
-        try {
-          const isComplete = await pollStatus();
-          if (isComplete) {
-            clearInterval(pollInterval);
-          }
-        } catch (error) {
-          clearInterval(pollInterval);
-          setIsGenerating(false);
-          setGenerationStatus('failed');
-          console.error('Error during polling:', error);
-          throw error;
-        }
-      }, 2000);
-
-      // Safety timeout
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (generationStatus !== 'completed') {
-          setGenerationStatus('failed');
-          setIsGenerating(false);
-          console.error('Generation timed out after 2 minutes');
-        }
-      }, 120000); // 2 minutes timeout
+      await pollStatus();
 
     } catch (error) {
       console.error('Error in startGeneration:', error);
