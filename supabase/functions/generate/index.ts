@@ -39,9 +39,10 @@ Deno.serve(async (req) => {
 
     console.log('Auth header present:', !!authHeader);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    // Get the token without the 'Bearer ' prefix
+    const token = authHeader.replace('Bearer ', '');
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Auth error:', authError);
