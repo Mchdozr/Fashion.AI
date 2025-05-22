@@ -152,14 +152,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const data = await response.json();
-      if (!data || typeof data.status === 'undefined') {
-        throw new Error('Invalid response format from status check');
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Status check failed');
       }
 
-      return { status: data.status, resultUrl: data.resultUrl };
+      return { 
+        status: data.status, 
+        resultUrl: data.resultUrl 
+      };
     } catch (error) {
       console.error('Error checking status:', error);
-      throw error; // Propagate the error with detailed message
+      throw error;
     }
   };
 
@@ -178,6 +182,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
+    setResultImage(null);
     
     let statusInterval: number | undefined;
 
@@ -243,6 +248,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
           if (status === 'completed' && resultUrl) {
+            console.log('Setting result image:', resultUrl);
             setResultImage(resultUrl);
             clearInterval(statusInterval);
             setIsGenerating(false);
@@ -261,6 +267,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }, 2000);
 
+      // Clear interval after 5 minutes (timeout)
       setTimeout(() => {
         if (statusInterval) {
           clearInterval(statusInterval);

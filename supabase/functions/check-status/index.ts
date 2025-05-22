@@ -45,20 +45,20 @@ Deno.serve(async (req) => {
     if (status === 'completed' && data.output && data.output.length > 0) {
       resultUrl = data.output[0];
       console.log('Result URL found:', resultUrl);
-    }
 
-    // Update generation status and result URL
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({ 
-        status: status,
-        ...(resultUrl && { result_image_url: resultUrl })
-      })
-      .eq('task_id', taskId);
+      // Update generation with result URL
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ 
+          status: status,
+          result_image_url: resultUrl
+        })
+        .eq('task_id', taskId);
 
-    if (updateError) {
-      console.error('Status update error:', updateError);
-      throw updateError;
+      if (updateError) {
+        console.error('Status update error:', updateError);
+        throw updateError;
+      }
     }
 
     return new Response(
