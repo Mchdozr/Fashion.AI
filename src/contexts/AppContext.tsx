@@ -135,13 +135,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
 
-      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
-      statusUrl.searchParams.append('taskId', taskId);
-
-      const response = await fetch(statusUrl, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/check_generation_status`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
+        method: 'POST',
+        body: JSON.stringify({ task_id: taskId }),
       });
 
       if (!response.ok) {
@@ -205,18 +205,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
-      
-      const response = await fetch(generateUrl, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/start_generation`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          modelImage: modelImageUrl,
-          garmentImage: garmentImageUrl,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
           category: apiCategory,
+          generation_id: generation.id
         }),
       });
 
@@ -228,6 +229,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const { taskId } = await response.json();
       if (!taskId) throw new Error('No task ID received from generation endpoint');
+
+      // Update the generation record with the task ID
+      await supabase
+        .from('generations')
+        .update({ task_id: taskId })
+        .eq('id', generation.id);
 
       statusInterval = window.setInterval(async () => {
         const { status, resultUrl } = await checkGenerationStatus(taskId);
