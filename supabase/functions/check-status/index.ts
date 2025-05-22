@@ -12,8 +12,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -49,6 +47,18 @@ Deno.serve(async (req) => {
       resultUrl = data.output[0];
       console.log('Result URL found:', resultUrl);
 
+      // Get the generation record first
+      const { data: generation, error: fetchError } = await supabase
+        .from('generations')
+        .select('id')
+        .eq('task_id', taskId)
+        .single();
+
+      if (fetchError || !generation) {
+        console.error('Failed to fetch generation:', fetchError);
+        throw new Error('Generation not found');
+      }
+
       // Update the generation record with the result URL
       const { error: updateError } = await supabase
         .from('generations')
@@ -56,12 +66,14 @@ Deno.serve(async (req) => {
           status: status,
           result_image_url: resultUrl
         })
-        .eq('task_id', taskId);
+        .eq('id', generation.id);
 
       if (updateError) {
         console.error('Failed to update generation:', updateError);
         throw new Error('Failed to update generation status');
       }
+
+      console.log('Successfully updated generation with result URL');
     }
 
     return new Response(

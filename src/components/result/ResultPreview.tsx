@@ -50,8 +50,12 @@ const ResultPreview: React.FC = () => {
           {resultImage ? (
             <img 
               src={resultImage} 
-              alt="Result" 
+              alt="Generated result" 
               className="w-full h-full object-contain"
+              onError={(e) => {
+                console.error('Failed to load result image:', resultImage);
+                e.currentTarget.src = garmentImage || '';
+              }}
             />
           ) : (
             <div className="text-center p-4">
