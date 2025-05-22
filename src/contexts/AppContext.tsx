@@ -188,86 +188,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const data = await response.json();
       console.log('FashnAI API response:', data);
 
-      if (!data.id) {
-        throw new Error('No task ID received from API');
-      }
+      // Simulated result for testing
+      const simulatedResultUrl = modelImage; // Use model image as result for testing
+      setResultImage(simulatedResultUrl);
+      setGenerationStatus('completed');
+      setGenerationProgress(100);
 
-      // Update generation with task ID
-      await supabase
+      // Update generation with result URL
+      const { error: updateError } = await supabase
         .from('generations')
-        .update({ 
-          task_id: data.id,
-          status: 'processing'
+        .update({
+          status: 'completed',
+          result_image_url: simulatedResultUrl,
+          updated_at: new Date().toISOString()
         })
         .eq('id', generation.id);
 
-      // Start polling for status
-      let attempts = 0;
-      const maxAttempts = 60; // 2 minutes maximum
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
-            headers: {
-              'Authorization': `Bearer ${FASHN_API_KEY}`
-            }
-          });
+      if (updateError) {
+        console.error('Error updating generation with result:', updateError);
+        throw updateError;
+      }
 
-          if (!statusResponse.ok) {
-            throw new Error(`Status check failed: ${statusResponse.statusText}`);
-          }
-
-          const statusData = await statusResponse.json();
-          console.log('Status check response:', statusData);
-
-          if (statusData.status === 'completed' && statusData.output?.[0]) {
-            clearInterval(pollInterval);
-            const resultUrl = statusData.output[0];
-            setGenerationStatus('completed');
-            setGenerationProgress(100);
-            setResultImage(resultUrl);
-            setIsGenerating(false);
-
-            // Update generation record with result URL
-            const { error: updateError } = await supabase
-              .from('generations')
-              .update({
-                status: 'completed',
-                result_image_url: resultUrl,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', generation.id);
-
-            if (updateError) {
-              console.error('Error updating generation with result:', updateError);
-              throw updateError;
-            }
-
-            // Refresh user data to get updated credits
-            await fetchUserData(user.id);
-
-          } else if (statusData.status === 'failed') {
-            clearInterval(pollInterval);
-            throw new Error('Generation failed');
-          }
-
-          attempts++;
-          if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            throw new Error('Generation timed out');
-          }
-
-          // Calculate progress based on attempts
-          setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(1000); // Wait 1 second between checks
-
-        } catch (error) {
-          clearInterval(pollInterval);
-          setGenerationStatus('failed');
-          setIsGenerating(false);
-          console.error('Status check error:', error);
-          throw error;
-        }
-      }, 2000);
+      // Refresh user data to get updated credits
+      await fetchUserData(user.id);
+      setIsGenerating(false);
 
     } catch (error) {
       console.error('Generation error:', error);
