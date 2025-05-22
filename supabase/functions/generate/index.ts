@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     }
 
     // Call FashnAI API
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/run', {
+    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,9 +82,23 @@ Deno.serve(async (req) => {
       throw new Error('Failed to update generation with task ID');
     }
 
+    // Check initial status
+    const statusResponse = await fetch(`https://api.fashn.ai/v1/requests/${fashnData.id}`, {
+      headers: {
+        'Authorization': `Bearer ${FASHN_API_KEY}`,
+      },
+    });
+
+    if (!statusResponse.ok) {
+      throw new Error('Failed to check initial status');
+    }
+
+    const statusData = await statusResponse.json();
+    console.log('Initial status check:', statusData);
+
     // If we have an immediate result
-    if (fashnData.status === 'completed' && fashnData.output?.[0]) {
-      const resultUrl = fashnData.output[0];
+    if (statusData.status === 'completed' && statusData.output?.[0]) {
+      const resultUrl = statusData.output[0];
       
       // Update generation with result
       const { error: resultUpdateError } = await supabase
@@ -121,22 +135,22 @@ Deno.serve(async (req) => {
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const statusResponse = await fetch(`https://api.fashn.ai/v1/run/${fashnData.id}`, {
+      const pollResponse = await fetch(`https://api.fashn.ai/v1/requests/${fashnData.id}`, {
         headers: {
           'Authorization': `Bearer ${FASHN_API_KEY}`,
         },
       });
 
-      if (!statusResponse.ok) {
+      if (!pollResponse.ok) {
         attempts++;
         continue;
       }
 
-      const statusData = await statusResponse.json();
-      console.log('Status check:', { attempt: attempts + 1, status: statusData.status });
+      const pollData = await pollResponse.json();
+      console.log('Status check:', { attempt: attempts + 1, status: pollData.status });
 
-      if (statusData.status === 'completed' && statusData.output?.[0]) {
-        const resultUrl = statusData.output[0];
+      if (pollData.status === 'completed' && pollData.output?.[0]) {
+        const resultUrl = pollData.output[0];
         
         // Update generation with result
         const { error: resultUpdateError } = await supabase
