@@ -145,14 +145,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        throw new Error(`Status check failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ 
+          error: response.statusText || 'Unknown error occurred'
+        }));
+        throw new Error(errorData.error || `Status check failed: ${response.statusText}`);
       }
 
-      const { status, resultUrl } = await response.json();
-      return { status, resultUrl };
+      const data = await response.json();
+      if (!data || typeof data.status === 'undefined') {
+        throw new Error('Invalid response format from status check');
+      }
+
+      return { status: data.status, resultUrl: data.resultUrl };
     } catch (error) {
       console.error('Error checking status:', error);
-      return { status: 'failed', resultUrl: null };
+      throw error; // Propagate the error with detailed message
     }
   };
 
@@ -229,20 +236,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!taskId) throw new Error('No task ID received from generation endpoint');
 
       statusInterval = window.setInterval(async () => {
-        const { status, resultUrl } = await checkGenerationStatus(taskId);
-        
-        setGenerationStatus(status);
-        setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
+        try {
+          const { status, resultUrl } = await checkGenerationStatus(taskId);
+          
+          setGenerationStatus(status);
+          setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
-        if (status === 'completed' && resultUrl) {
-          setResultImage(resultUrl);
+          if (status === 'completed' && resultUrl) {
+            setResultImage(resultUrl);
+            clearInterval(statusInterval);
+            setIsGenerating(false);
+            await fetchUserData(user.id);
+          } else if (status === 'failed') {
+            clearInterval(statusInterval);
+            setIsGenerating(false);
+            throw new Error('Generation failed');
+          }
+        } catch (error) {
           clearInterval(statusInterval);
           setIsGenerating(false);
-          await fetchUserData(user.id);
-        } else if (status === 'failed') {
-          clearInterval(statusInterval);
-          setIsGenerating(false);
-          throw new Error('Generation failed');
+          setGenerationStatus('failed');
+          console.error('Error in status check interval:', error);
+          throw error;
         }
       }, 2000);
 
