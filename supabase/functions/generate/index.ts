@@ -6,15 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const FASHN_API_KEY = 'fa-SrXFbsn4INbb-aXVejFdvMYdCfEPnVlcSkCZY';
-const SUPABASE_URL = 'https://falgqnojruzxvwklsnnf.supabase.co';
+const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 if (!FASHN_API_KEY) {
-  throw new Error('FASHN_API_KEY is not set');
+  console.error('FASHN_API_KEY is missing');
+  throw new Error('FASHN_API_KEY is not set in environment variables');
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
+const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -31,6 +32,7 @@ Deno.serve(async (req) => {
     }
 
     const { modelImage, garmentImage, category, userId } = await req.json();
+    console.log('Received request:', { modelImage, garmentImage, category, userId });
 
     // Validate required parameters
     if (!modelImage || !garmentImage || !category || !userId) {
@@ -48,6 +50,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // Ignore "no rows returned" error
+      console.error('Error fetching pending generation:', fetchError);
       throw new Error('Failed to fetch pending generation');
     }
 
@@ -72,10 +75,16 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('FashnAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
       throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
     const data = await response.json();
+    console.log('FashnAI API response:', data);
 
     if (!data.task_id) {
       throw new Error('No task_id received from FashnAI API');
@@ -91,6 +100,7 @@ Deno.serve(async (req) => {
       .eq('id', pendingGeneration.id);
 
     if (updateError) {
+      console.error('Error updating generation with task_id:', updateError);
       throw new Error('Failed to update generation with task_id');
     }
 
@@ -106,6 +116,8 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('Generation error:', error);
+    
     return new Response(
       JSON.stringify({
         success: false,
