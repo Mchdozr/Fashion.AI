@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-const FASHN_API_KEY = 'fa-3IbAVWzJdI3Q-muDAOfQF1dg9TDoUgcG3GmCd';
+const FASHN_API_KEY = 'fa-lt7AjDCKf71y-gC6Nkdyc4gPv7h6YKmvcRxc7';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     // Update generation with task ID and result if available
     const updateData: any = {
-      status: fashnData.status,
+      status: fashnData.status || 'processing',
       task_id: fashnData.id
     };
 
