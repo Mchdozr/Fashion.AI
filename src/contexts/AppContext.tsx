@@ -131,6 +131,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
+  const parseApiResponse = async (response: Response) => {
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      const textResponse = await response.text();
+      console.error('Non-JSON response from API:', textResponse);
+      throw new Error(`API returned non-JSON response: ${textResponse}`);
+    }
+
+    try {
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error);
+      throw new Error('Invalid JSON response from API');
+    }
+  };
+
   const startGeneration = async () => {
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
@@ -171,11 +187,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await parseApiResponse(response);
         throw new Error(errorData.message || `API request failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await parseApiResponse(response);
       console.log('FashnAI API response:', data);
 
       if (!data.task_id) {
@@ -216,7 +232,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error(`Status check failed: ${statusResponse.statusText}`);
           }
 
-          const statusData = await statusResponse.json();
+          const statusData = await parseApiResponse(statusResponse);
           console.log('Status check response:', statusData);
 
           if (statusData.status === 'completed' && statusData.result_url) {
