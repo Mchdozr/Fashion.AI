@@ -24,7 +24,7 @@ interface AppContextType {
   setNumSamples: (num: number) => void;
   seed: number;
   setSeed: (seed: number) => void;
-  generateAIModel: () => void;
+  generateAIModel: () => Promise<void>;
   startGeneration: () => Promise<void>;
   user: User | null;
   credits: number;
@@ -118,16 +118,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const generateAIModel = () => {
+  const generateAIModel = async () => {
     if (!modelImage) return;
     
     setIsModelGenerating(true);
     setIsModelReady(false);
     
-    setTimeout(() => {
-      setIsModelGenerating(false);
-      setIsModelReady(true);
-    }, 3000);
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        setIsModelGenerating(false);
+        setIsModelReady(true);
+        resolve();
+      }, 3000);
+    });
   };
 
   const checkGenerationStatus = async (taskId: string) => {

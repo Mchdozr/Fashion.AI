@@ -6,9 +6,9 @@ import { useAppContext } from '../../contexts/AppContext';
 const ModelUpload: React.FC = () => {
   const { modelImage, setModelImage, generateAIModel, isModelGenerating } = useAppContext();
 
-  const handleImageChange = (imageUrl: string) => {
+  const handleImageChange = async (imageUrl: string) => {
     setModelImage(imageUrl);
-    generateAIModel();
+    await generateAIModel();
   };
 
   return (
