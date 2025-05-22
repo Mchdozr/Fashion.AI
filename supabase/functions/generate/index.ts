@@ -69,18 +69,33 @@ Deno.serve(async (req) => {
     const fashnData = await fashnResponse.json();
     console.log('FashnAI response:', fashnData);
 
-    // Check if we have an immediate result
+    // Update generation with task ID immediately
+    const { error: taskUpdateError } = await supabase
+      .from('generations')
+      .update({
+        task_id: fashnData.id,
+        status: 'processing'
+      })
+      .eq('id', generationId);
+
+    if (taskUpdateError) {
+      throw new Error('Failed to update generation with task ID');
+    }
+
+    // If we have an immediate result
     if (fashnData.status === 'completed' && fashnData.output?.[0]) {
-      const { error: updateError } = await supabase
+      const resultUrl = fashnData.output[0];
+      
+      // Update generation with result
+      const { error: resultUpdateError } = await supabase
         .from('generations')
         .update({
           status: 'completed',
-          result_image_url: fashnData.output[0],
-          task_id: fashnData.id
+          result_image_url: resultUrl
         })
         .eq('id', generationId);
 
-      if (updateError) {
+      if (resultUpdateError) {
         throw new Error('Failed to update generation with result');
       }
 
@@ -88,8 +103,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           taskId: fashnData.id,
-          status: 'completed',
-          resultUrl: fashnData.output[0]
+          resultUrl: resultUrl
         }),
         {
           headers: {
@@ -100,23 +114,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If no immediate result, start polling
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({
-        status: 'processing',
-        task_id: fashnData.id
-      })
-      .eq('id', generationId);
-
-    if (updateError) {
-      throw new Error('Failed to update generation status');
-    }
-
     // Start polling for result
     let attempts = 0;
     const maxAttempts = 10;
-    let resultUrl = null;
 
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -128,18 +128,18 @@ Deno.serve(async (req) => {
       });
 
       if (!statusResponse.ok) {
-        console.error('Status check failed:', statusResponse.statusText);
         attempts++;
         continue;
       }
 
       const statusData = await statusResponse.json();
-      console.log('Status check response:', statusData);
+      console.log('Status check:', { attempt: attempts + 1, status: statusData.status });
 
       if (statusData.status === 'completed' && statusData.output?.[0]) {
-        resultUrl = statusData.output[0];
+        const resultUrl = statusData.output[0];
         
-        const { error: finalUpdateError } = await supabase
+        // Update generation with result
+        const { error: resultUpdateError } = await supabase
           .from('generations')
           .update({
             status: 'completed',
@@ -147,36 +147,30 @@ Deno.serve(async (req) => {
           })
           .eq('id', generationId);
 
-        if (finalUpdateError) {
-          console.error('Failed to update final status:', finalUpdateError);
+        if (resultUpdateError) {
+          console.error('Failed to update final status:', resultUpdateError);
+          throw new Error('Failed to save result URL');
         }
 
-        break;
-      } else if (statusData.status === 'failed') {
-        throw new Error('Generation failed');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            taskId: fashnData.id,
+            resultUrl: resultUrl
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
+          }
+        );
       }
 
       attempts++;
     }
 
-    if (!resultUrl && attempts >= maxAttempts) {
-      throw new Error('Generation timed out');
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        taskId: fashnData.id,
-        status: resultUrl ? 'completed' : 'processing',
-        resultUrl
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
-      }
-    );
+    throw new Error('Generation timed out');
 
   } catch (error) {
     console.error('Generation error:', error);
