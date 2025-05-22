@@ -133,9 +133,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .single();
 
     if (error) {
+      console.error('Error checking generation status:', error);
       throw new Error(`Failed to check generation status: ${error.message}`);
     }
 
+    if (!data) {
+      console.error('No data returned from status check');
+      throw new Error('No generation data found');
+    }
+
+    console.log('Generation status check:', { generationId, status: data.status });
     return {
       status: data.status,
       resultUrl: data.result_image_url
@@ -183,6 +190,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw insertError || new Error('Failed to create generation record');
       }
 
+      console.log('Starting generation:', { generationId: generation.id });
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
@@ -203,6 +212,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const { taskId, resultUrl } = await response.json();
+      console.log('Generation initiated:', { taskId, generationId: generation.id });
 
       // If we got an immediate result, update the UI
       if (resultUrl) {
@@ -216,7 +226,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Otherwise poll for updates
       let retryCount = 0;
-      const maxRetries = 30; // 1 minute total (2 second intervals)
+      const maxRetries = 60; // 2 minutes total (2 second intervals)
+      let pollInterval: NodeJS.Timeout;
 
       const pollStatus = async () => {
         try {
@@ -234,15 +245,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
 
           setGenerationStatus(status as 'pending' | 'processing' | 'completed' | 'failed');
-          setGenerationProgress(status === 'processing' ? 50 : 0);
+          setGenerationProgress(status === 'processing' ? 50 : 25);
 
           if (++retryCount >= maxRetries) {
-            throw new Error('Generation timed out');
+            throw new Error('Generation timed out after 2 minutes');
           }
 
           return false;
         } catch (error) {
-          console.error('Error checking status:', error);
+          console.error('Error in poll status:', error);
           throw error;
         }
       };
@@ -251,7 +262,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await delay(2000);
 
       // Start polling
-      const pollInterval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         try {
           const isComplete = await pollStatus();
           if (isComplete) {
@@ -261,7 +272,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           clearInterval(pollInterval);
           setIsGenerating(false);
           setGenerationStatus('failed');
-          console.error('Error polling status:', error);
+          console.error('Error during polling:', error);
+          throw error;
         }
       }, 2000);
 
@@ -271,11 +283,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (generationStatus !== 'completed') {
           setGenerationStatus('failed');
           setIsGenerating(false);
+          console.error('Generation timed out after 2 minutes');
         }
-      }, 60000);
+      }, 120000); // 2 minutes timeout
 
     } catch (error) {
-      console.error('Error generating try-on:', error);
+      console.error('Error in startGeneration:', error);
       setGenerationStatus('failed');
       setIsGenerating(false);
       throw error;
