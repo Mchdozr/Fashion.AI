@@ -7,14 +7,14 @@ const corsHeaders = {
 };
 
 const FASHN_API_KEY = 'fa-SrXFbsn4INbb-aXVejFdvMYdCfEPnVlcSkCZY';
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+const SUPABASE_URL = 'https://falgqnojruzxvwklsnnf.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 if (!FASHN_API_KEY) {
   throw new Error('FASHN_API_KEY is not set');
 }
 
-const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
