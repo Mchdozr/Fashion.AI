@@ -6,7 +6,7 @@ type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
 const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/api'; // Updated API URL
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
