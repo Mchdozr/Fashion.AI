@@ -126,12 +126,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 3000);
   };
 
-  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
+  const checkGenerationStatus = async (generationId: string): Promise<{ status: string; resultUrl?: string }> => {
+    const { data: generation, error: fetchError } = await supabase
+      .from('generations')
+      .select('*')
+      .eq('id', generationId)
+      .single();
+
+    if (fetchError) throw new Error(`Failed to fetch generation: ${fetchError.message}`);
+    if (!generation) throw new Error('Generation not found');
+    if (!generation.task_id) throw new Error('No task ID found for generation');
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No active session found');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${generation.task_id}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -147,11 +157,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error('Invalid response from status check endpoint');
       }
 
-      console.log('Status check response:', data);
-
       if (!data.success) {
         throw new Error(data?.error || 'Status check failed');
       }
+
+      // Update generation status in database
+      await supabase
+        .from('generations')
+        .update({ 
+          status: data.status,
+          result_image_url: data.resultUrl || null
+        })
+        .eq('id', generationId);
 
       return {
         status: data.status,
@@ -201,6 +218,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .single();
 
       if (insertError) throw insertError;
+      if (!generation) throw new Error('Failed to create generation record');
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
@@ -223,11 +241,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { taskId } = await response.json();
       if (!taskId) throw new Error('No task ID received');
 
+      // Update the generation record with the task ID
+      const { error: updateError } = await supabase
+        .from('generations')
+        .update({ task_id: taskId })
+        .eq('id', generation.id);
+
+      if (updateError) throw updateError;
+
       await delay(2000); // Initial delay before first status check
 
       const checkStatus = async () => {
         try {
-          const { status, resultUrl } = await checkGenerationStatus(taskId);
+          const { status, resultUrl } = await checkGenerationStatus(generation.id);
           
           setGenerationStatus(status);
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
