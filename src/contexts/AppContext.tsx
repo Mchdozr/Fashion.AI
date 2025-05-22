@@ -5,9 +5,6 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
-
 interface AppContextType {
   modelImage: string | null;
   setModelImage: (url: string) => void;
@@ -134,7 +131,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
-      // Create generation record
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
@@ -152,77 +148,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API
-      const response = await fetch(`${FASHN_API_URL}/run`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${FASHN_API_KEY}`
         },
         body: JSON.stringify({
-          model_image: modelImageUrl,
-          garment_image: garmentImageUrl,
-          category: category
-        })
+          modelImage: modelImageUrl,
+          garmentImage: garmentImageUrl,
+          category,
+          userId: user.id,
+        }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to start generation');
       }
 
-      const data = await response.json();
-      console.log('FashnAI API response:', data);
+      const { taskId } = await response.json();
 
-      if (!data.id) {
-        throw new Error('No task ID received from API');
-      }
-
-      // Update generation with task ID
-      await supabase
-        .from('generations')
-        .update({ 
-          task_id: data.id,
-          status: 'processing'
-        })
-        .eq('id', generation.id);
-
-      // Poll for status
       const checkStatus = async () => {
-        const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
+        const statusResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
           headers: {
-            'Authorization': `Bearer ${FASHN_API_KEY}`
-          }
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
         });
 
         if (!statusResponse.ok) {
           throw new Error('Failed to check status');
         }
 
-        const statusData = await statusResponse.json();
-        console.log('Status check response:', statusData);
+        const { status, resultUrl } = await statusResponse.json();
+        
+        setGenerationStatus(status);
+        setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
-        if (statusData.status === 'completed' && statusData.output?.[0]) {
-          setGenerationStatus('completed');
-          setGenerationProgress(100);
-          setResultImage(statusData.output[0]);
+        if (status === 'completed' && resultUrl) {
+          setResultImage(resultUrl);
           setIsGenerating(false);
-
-          // Update generation record with result URL
-          await supabase
-            .from('generations')
-            .update({
-              status: 'completed',
-              result_image_url: statusData.output[0]
-            })
-            .eq('id', generation.id);
-
+          await fetchUserData(user.id);
           return true;
         }
 
         return false;
       };
 
-      // Poll every 2 seconds until complete
       const pollInterval = setInterval(async () => {
         try {
           const isComplete = await checkStatus();
@@ -237,7 +208,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }, 2000);
 
-      // Timeout after 2 minutes
       setTimeout(() => {
         clearInterval(pollInterval);
         if (generationStatus !== 'completed') {
