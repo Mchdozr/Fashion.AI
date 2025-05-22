@@ -227,14 +227,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setResultImage(statusData.output[0]);
             setIsGenerating(false);
 
-            // Update generation record
+            // Update generation record with result URL
             await supabase
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.output[0]
+                result_image_url: statusData.output[0],
+                updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
+
+            // Refresh user data to get updated credits
+            await fetchUserData(user.id);
 
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
