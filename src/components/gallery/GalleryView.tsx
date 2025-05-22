@@ -22,7 +22,10 @@ const GalleryView: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setGenerations(data || []);
+      
+      // Filter out generations without result images
+      const completedGenerations = data?.filter(gen => gen.result_image_url) || [];
+      setGenerations(completedGenerations);
     } catch (error) {
       console.error('Error fetching generations:', error);
     } finally {
@@ -100,7 +103,7 @@ const GalleryView: React.FC = () => {
       
       {generations.length === 0 ? (
         <div className="text-center text-gray-400 py-12">
-          <p>No generations yet. Start creating!</p>
+          <p>No completed generations yet. Start creating!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -111,13 +114,13 @@ const GalleryView: React.FC = () => {
             >
               <div className="aspect-[3/4] relative group">
                 <img
-                  src={generation.result_image_url || generation.garment_image_url}
+                  src={generation.result_image_url}
                   alt="Generated result"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                   <button
-                    onClick={() => handleDownload(generation.result_image_url || generation.garment_image_url)}
+                    onClick={() => handleDownload(generation.result_image_url!)}
                     className="bg-[#F8D74B] text-black p-3 rounded-full hover:bg-[#f9df6e] transition-colors duration-150"
                   >
                     <Download size={20} />
