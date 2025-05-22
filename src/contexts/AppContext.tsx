@@ -5,6 +5,18 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
+// API category mapping
+const categoryMapping = {
+  'top': 'tops',
+  'bottom': 'bottoms',
+  'full-body': 'one-pieces'
+} as const;
+
+const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_URL = 'https://api.fashn.ai/v1';
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface AppContextType {
   modelImage: string | null;
   setModelImage: (url: string) => void;
@@ -122,12 +134,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
     }
-
-    // Get the current session for authentication
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('No active session found');
-    }
     
     setIsGenerating(true);
     setGenerationStatus('pending');
@@ -137,6 +143,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
+
+      const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
+      if (!apiCategory) {
+        throw new Error(`Invalid category: ${category}`);
+      }
 
       // Create generation record
       const { data: generation, error: insertError } = await supabase
@@ -156,91 +167,102 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call generate function through Supabase Edge Function
-      const generateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/start_generation`;
-      const response = await fetch(generateUrl, {
+      // Call FashnAI API
+      const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${FASHN_API_KEY}`
         },
         body: JSON.stringify({
-          model_image_url: modelImageUrl,
-          garment_image_url: garmentImageUrl,
-          category,
-          user_id: user.id,
-          generation_id: generation.id
-        }),
+          model_image: modelImageUrl,
+          garment_image: garmentImageUrl,
+          category: apiCategory
+        })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start generation');
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
       }
 
-      const { task_id } = await response.json();
+      const data = await response.json();
+      console.log('FashnAI API response:', data);
 
-      // Poll for status updates
-      const pollStatus = async () => {
+      if (!data.id) {
+        throw new Error('No task ID received from API');
+      }
+
+      // Update generation with task ID
+      await supabase
+        .from('generations')
+        .update({ 
+          task_id: data.id,
+          status: 'processing'
+        })
+        .eq('id', generation.id);
+
+      // Start polling for status
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes maximum
+      const pollInterval = setInterval(async () => {
         try {
-          const statusUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/generations?id=eq.${generation.id}`;
-          const statusResponse = await fetch(statusUrl, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
             headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            },
+              'Authorization': `Bearer ${FASHN_API_KEY}`
+            }
           });
 
           if (!statusResponse.ok) {
-            throw new Error('Failed to check status');
+            throw new Error(`Status check failed: ${statusResponse.statusText}`);
           }
 
-          const [generationStatus] = await statusResponse.json();
-          
-          setGenerationStatus(generationStatus.status);
-          setGenerationProgress(generationStatus.status === 'completed' ? 100 : generationStatus.status === 'processing' ? 50 : 0);
+          const statusData = await statusResponse.json();
+          console.log('Status check response:', statusData);
 
-          if (generationStatus.status === 'completed' && generationStatus.result_image_url) {
-            setResultImage(generationStatus.result_image_url);
+          if (statusData.status === 'completed' && statusData.output?.[0]) {
+            clearInterval(pollInterval);
+            setGenerationStatus('completed');
+            setGenerationProgress(100);
+            setResultImage(statusData.output[0]);
             setIsGenerating(false);
+
+            // Update generation record with result URL
+            await supabase
+              .from('generations')
+              .update({
+                status: 'completed',
+                result_image_url: statusData.output[0],
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', generation.id);
+
+            // Refresh user data to get updated credits
             await fetchUserData(user.id);
-            return true;
-          } else if (generationStatus.status === 'failed') {
-            setIsGenerating(false);
+
+          } else if (statusData.status === 'failed') {
+            clearInterval(pollInterval);
             throw new Error('Generation failed');
           }
 
-          return false;
-        } catch (error) {
-          console.error('Status check error:', error);
-          setGenerationStatus('failed');
-          setIsGenerating(false);
-          throw error;
-        }
-      };
-
-      // Start polling
-      const pollInterval = setInterval(async () => {
-        try {
-          const isComplete = await pollStatus();
-          if (isComplete) {
+          attempts++;
+          if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
+            throw new Error('Generation timed out');
           }
+
+          // Calculate progress based on attempts
+          setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
+          await delay(1000); // Wait 1 second between checks
+
         } catch (error) {
           clearInterval(pollInterval);
-          console.error('Polling error:', error);
-        }
-      }, 2000);
-
-      // Set timeout to stop polling after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (generationStatus !== 'completed') {
           setGenerationStatus('failed');
           setIsGenerating(false);
+          console.error('Status check error:', error);
+          throw error;
         }
-      }, 300000);
+      }, 2000);
 
     } catch (error) {
       console.error('Generation error:', error);
