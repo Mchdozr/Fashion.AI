@@ -228,7 +228,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsGenerating(false);
 
             // Update generation record with result URL
-            await supabase
+            const { error: updateError } = await supabase
               .from('generations')
               .update({
                 status: 'completed',
@@ -236,6 +236,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
+
+            if (updateError) {
+              console.error('Error updating generation with result:', updateError);
+            }
 
             // Refresh user data to get updated credits
             await fetchUserData(user.id);
