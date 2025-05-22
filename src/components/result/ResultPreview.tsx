@@ -11,12 +11,19 @@ const ResultPreview: React.FC = () => {
     generationStatus,
     startGeneration,
     isModelReady,
-    category
+    category,
+    user
   } = useAppContext();
 
-  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating;
+  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating && user;
 
   const getStatusMessage = () => {
+    if (!user) return 'Please sign in to generate';
+    if (!modelImage) return 'Upload a model photo';
+    if (!garmentImage) return 'Upload a garment photo';
+    if (!category) return 'Select a category';
+    if (!isModelReady) return 'Processing model...';
+    
     switch (generationStatus) {
       case 'pending':
         return 'Waiting to start...';
@@ -27,7 +34,7 @@ const ResultPreview: React.FC = () => {
       case 'failed':
         return 'Generation failed. Please try again.';
       default:
-        return 'Upload images to start';
+        return 'Ready to generate';
     }
   };
 
@@ -66,7 +73,7 @@ const ResultPreview: React.FC = () => {
         </div>
         
         <button
-          onClick={startGeneration}
+          onClick={() => startGeneration().catch(console.error)}
           disabled={!canGenerate}
           className={`w-full py-3 rounded-md font-medium flex items-center justify-center transition-all duration-150 ${
             !canGenerate
