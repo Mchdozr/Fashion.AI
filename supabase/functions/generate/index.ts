@@ -26,42 +26,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    const body = await req.json();
-    const { modelImage, garmentImage, category } = body;
+    const { modelImage, garmentImage, category } = await req.json();
 
     if (!modelImage || !garmentImage || !category) {
       throw new Error('Missing required parameters');
     }
 
-    // Get the latest pending generation
-    const { data: pendingGeneration, error: fetchError } = await supabase
-      .from('generations')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (fetchError) {
-      throw new Error('Failed to fetch pending generation');
-    }
-
     // Call FashnAI API
-    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
+    const fashnResponse = await fetch('https://api.fashn.ai/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,19 +53,6 @@ Deno.serve(async (req) => {
     }
 
     const fashnData = await fashnResponse.json();
-
-    // Update generation with task ID and initial status
-    const { error: updateError } = await supabase
-      .from('generations')
-      .update({ 
-        task_id: fashnData.task_id,
-        status: 'processing'
-      })
-      .eq('id', pendingGeneration.id);
-
-    if (updateError) {
-      throw new Error('Failed to update generation status');
-    }
 
     return new Response(
       JSON.stringify({ 
@@ -115,7 +74,7 @@ Deno.serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 400,
+        status: 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
