@@ -17,10 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const data = await req.json();
-    console.log('Webhook received:', data);
-
-    const { task_id, status, output } = data;
+    const { task_id, status, result_url } = await req.json();
 
     if (!task_id) {
       throw new Error('Task ID is required');
@@ -28,7 +25,7 @@ Deno.serve(async (req) => {
 
     const updateData = {
       status,
-      result_image_url: output && output.length > 0 ? output[0] : null
+      ...(result_url && { result_image_url: result_url })
     };
 
     const { error: updateError } = await supabase

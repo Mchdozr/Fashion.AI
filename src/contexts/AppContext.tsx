@@ -24,7 +24,7 @@ interface AppContextType {
   setNumSamples: (num: number) => void;
   seed: number;
   setSeed: (seed: number) => void;
-  generateAIModel: () => Promise<void>;
+  generateAIModel: () => void;
   startGeneration: () => Promise<void>;
   user: User | null;
   credits: number;
@@ -32,7 +32,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// API kategori eşleştirmesi
+// Map internal categories to API categories
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -118,19 +118,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const generateAIModel = async () => {
+  const generateAIModel = () => {
     if (!modelImage) return;
     
     setIsModelGenerating(true);
     setIsModelReady(false);
     
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        setIsModelGenerating(false);
-        setIsModelReady(true);
-        resolve();
-      }, 3000);
-    });
+    setTimeout(() => {
+      setIsModelGenerating(false);
+      setIsModelReady(true);
+    }, 3000);
   };
 
   const checkGenerationStatus = async (taskId: string) => {
@@ -138,7 +135,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
+      statusUrl.searchParams.append('taskId', taskId);
+
+      const response = await fetch(statusUrl, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -148,8 +148,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Status check failed: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return { status: data.status, resultUrl: data.resultUrl };
+      const { status, resultUrl } = await response.json();
+      return { status, resultUrl };
     } catch (error) {
       console.error('Error checking status:', error);
       return { status: 'failed', resultUrl: null };
@@ -171,7 +171,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
-    setResultImage(null);
     
     let statusInterval: number | undefined;
 
@@ -182,7 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
-      // API kategorisini eşleştir
+      // Map the internal category to the API category
       const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
       if (!apiCategory) {
         throw new Error(`Invalid category: ${category}`);
@@ -205,7 +204,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
+      
+      const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
