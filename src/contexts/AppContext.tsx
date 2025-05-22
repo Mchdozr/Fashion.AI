@@ -168,15 +168,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(data?.error || 'Status check failed');
       }
 
-      // Update generation status in database
-      await supabase
-        .from('generations')
-        .update({ 
-          status: data.status,
-          result_image_url: data.resultUrl || null
-        })
-        .eq('id', generationId);
-
       return {
         status: data.status,
         resultUrl: data.resultUrl
