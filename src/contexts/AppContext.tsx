@@ -152,13 +152,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           status: 'pending'
         })
         .select()
-        .select()
         .single();
 
       if (insertError) throw insertError;
 
       // Call generate function through Supabase Edge Function
-      const generateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/generate`;
+      const generateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/start_generation`;
       const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
