@@ -11,17 +11,12 @@ const ResultPreview: React.FC = () => {
     generationStatus,
     startGeneration,
     isModelReady,
-    category,
-    user
+    category
   } = useAppContext();
 
-  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating && user;
+  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating;
 
   const getStatusMessage = () => {
-    if (!user) {
-      return 'Please sign in to generate';
-    }
-    
     switch (generationStatus) {
       case 'pending':
         return 'Waiting to start...';
@@ -55,15 +50,8 @@ const ResultPreview: React.FC = () => {
           {resultImage ? (
             <img 
               src={resultImage} 
-              alt="Generated result" 
+              alt="Result" 
               className="w-full h-full object-contain"
-              onError={(e) => {
-                console.error('Failed to load result image:', resultImage);
-                e.currentTarget.src = garmentImage || '';
-              }}
-              onLoad={() => {
-                console.log('Result image loaded successfully:', resultImage);
-              }}
             />
           ) : (
             <div className="text-center p-4">
