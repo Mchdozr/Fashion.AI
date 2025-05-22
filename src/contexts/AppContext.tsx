@@ -152,23 +152,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           status: 'pending'
         })
         .select()
+        .select()
         .single();
 
       if (insertError) throw insertError;
 
-      // Call generate function through Supabase Edge Function with session token
-      const generateUrl = new URL('/functions/v1/generate', import.meta.env.VITE_SUPABASE_URL).toString();
+      // Call generate function through Supabase Edge Function
+      const generateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/generate`;
       const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          modelImage: modelImageUrl,
-          garmentImage: garmentImageUrl,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
           category,
-          userId: user.id,
+          user_id: user.id,
+          generation_id: generation.id
         }),
       });
 
@@ -177,15 +180,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(errorData.error || 'Failed to start generation');
       }
 
-      const { taskId } = await response.json();
+      const { task_id } = await response.json();
 
-      // Poll for status updates with session token
+      // Poll for status updates
       const pollStatus = async () => {
         try {
-          const statusUrl = new URL(`/functions/v1/check-status?taskId=${taskId}`, import.meta.env.VITE_SUPABASE_URL).toString();
+          const statusUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/generations?id=eq.${generation.id}`;
           const statusResponse = await fetch(statusUrl, {
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             },
           });
 
@@ -193,17 +197,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Failed to check status');
           }
 
-          const { status, resultUrl } = await statusResponse.json();
+          const [generationStatus] = await statusResponse.json();
           
-          setGenerationStatus(status);
-          setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
+          setGenerationStatus(generationStatus.status);
+          setGenerationProgress(generationStatus.status === 'completed' ? 100 : generationStatus.status === 'processing' ? 50 : 0);
 
-          if (status === 'completed' && resultUrl) {
-            setResultImage(resultUrl);
+          if (generationStatus.status === 'completed' && generationStatus.result_image_url) {
+            setResultImage(generationStatus.result_image_url);
             setIsGenerating(false);
             await fetchUserData(user.id);
             return true;
-          } else if (status === 'failed') {
+          } else if (generationStatus.status === 'failed') {
             setIsGenerating(false);
             throw new Error('Generation failed');
           }
