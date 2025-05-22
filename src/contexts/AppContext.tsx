@@ -130,27 +130,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No session found');
 
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-    });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to check status');
+      const data = await response.json();
+      console.log('Status check response:', data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Status check failed');
+      }
+
+      return {
+        status: data.status,
+        resultUrl: data.resultUrl
+      };
+    } catch (error) {
+      console.error('Status check error:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to check status');
     }
-
-    const data = await response.json();
-    console.log('Status check response:', data);
-
-    if (!data.success) {
-      throw new Error(data.error || 'Status check failed');
-    }
-
-    return {
-      status: data.status,
-      resultUrl: data.resultUrl
-    };
   };
 
   const startGeneration = async () => {
