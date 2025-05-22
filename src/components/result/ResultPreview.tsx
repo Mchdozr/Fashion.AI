@@ -56,6 +56,9 @@ const ResultPreview: React.FC = () => {
                 console.error('Failed to load result image:', resultImage);
                 e.currentTarget.src = garmentImage || '';
               }}
+              onLoad={() => {
+                console.log('Result image loaded successfully:', resultImage);
+              }}
             />
           ) : (
             <div className="text-center p-4">
