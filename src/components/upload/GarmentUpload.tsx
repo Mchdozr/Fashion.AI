@@ -45,4 +45,4 @@ const GarmentUpload: React.FC = () => {
   );
 };
 
-export default GarmentUpload
+export default GarmentUpload;

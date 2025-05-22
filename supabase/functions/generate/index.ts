@@ -4,53 +4,69 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '86400',
 };
 
-const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
+const FASHN_API_KEY = 'fa-CiroGfKMHu6D-RSKwu7ZtZ67E6qySH7AOAM1l';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!FASHN_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing required environment variables');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Required environment variables are not set');
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
+  console.log('Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
-    const { modelImage, garmentImage, category, userId } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing Authorization header');
+    }
 
-    if (!modelImage || !garmentImage || !category || !userId) {
+    console.log('Auth header present:', !!authHeader);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      throw new Error('Unauthorized');
+    }
+
+    console.log('User authenticated:', user.id);
+
+    const body = await req.json().catch(() => ({}));
+    console.log('Request body:', body);
+
+    const { modelImage, garmentImage, category } = body;
+
+    if (!modelImage || !garmentImage || !category) {
       throw new Error('Missing required parameters');
     }
 
-    // Insert new generation record
-    const { data: generation, error: insertError } = await supabase
-      .from('generations')
-      .insert({
-        user_id: userId,
-        model_image_url: modelImage,
-        garment_image_url: garmentImage,
-        category,
-        status: 'pending',
-        performance_mode: 'balanced', // Default value
-        num_samples: 1, // Default value
-        seed: Math.floor(Math.random() * 1000000),
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    // Call FashnAI API
+    console.log('Calling FashnAI API with params:', {
+      model_image: modelImage.substring(0, 50) + '...',
+      garment_image: garmentImage.substring(0, 50) + '...',
+      category
+    });
 
-    if (insertError) {
-      throw new Error(`Failed to create generation record: ${insertError.message}`);
-    }
-
-    // Call Fashn AI API
-    const response = await fetch('https://api.fashn.ai/v1/generate', {
+    const fashnResponse = await fetch('https://api.fashn.ai/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -59,42 +75,54 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model_image: modelImage,
         garment_image: garmentImage,
-        category,
+        category: category,
         webhook_url: `${SUPABASE_URL}/functions/v1/webhook`
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(`FashnAI API error: ${errorData.message || response.statusText}`);
+    if (!fashnResponse.ok) {
+      const errorData = await fashnResponse.json()
+        .catch(() => ({ message: fashnResponse.statusText }));
+      console.error('FashnAI API error:', {
+        status: fashnResponse.status,
+        statusText: fashnResponse.statusText,
+        error: errorData
+      });
+      throw new Error(errorData.message || 'FashnAI API request failed');
     }
 
-    const data = await response.json();
+    const fashnData = await fashnResponse.json();
+    console.log('FashnAI response:', fashnData);
 
-    if (!data.task_id) {
+    if (!fashnData.task_id) {
+      console.error('No task_id in response:', fashnData);
       throw new Error('No task_id received from FashnAI API');
     }
 
-    // Update generation with task ID
+    // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
       .update({ 
-        task_id: data.task_id,
-        status: 'processing'
+        status: 'processing',
+        task_id: fashnData.task_id
       })
-      .eq('id', generation.id);
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (updateError) {
-      throw new Error(`Failed to update generation with task_id: ${updateError.message}`);
+      console.error('Update error:', updateError);
+      throw new Error('Failed to update generation status');
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        taskId: data.task_id,
-        generationId: generation.id 
+        taskId: fashnData.task_id 
       }),
       {
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
@@ -103,15 +131,15 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Generation error:', error);
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: 400,
+        status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 400,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
