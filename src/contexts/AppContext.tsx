@@ -157,7 +157,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (insertError) throw insertError;
 
       // Call generate function through Supabase Edge Function with session token
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+      const generateUrl = new URL('/functions/v1/generate', import.meta.env.VITE_SUPABASE_URL).toString();
+      const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -181,14 +182,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Poll for status updates with session token
       const pollStatus = async () => {
         try {
-          const statusResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-            }
-          );
+          const statusUrl = new URL(`/functions/v1/check-status?taskId=${taskId}`, import.meta.env.VITE_SUPABASE_URL).toString();
+          const statusResponse = await fetch(statusUrl, {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          });
 
           if (!statusResponse.ok) {
             throw new Error('Failed to check status');
