@@ -124,7 +124,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsModelGenerating(true);
     setIsModelReady(false);
     
-    // Simulate AI model generation
     setTimeout(() => {
       setIsModelGenerating(false);
       setIsModelReady(true);
@@ -134,16 +133,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const checkGenerationStatus = async (taskId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
+      if (!session) throw new Error('No session found');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
+      statusUrl.searchParams.append('taskId', taskId);
+
+      const response = await fetch(statusUrl, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error('Failed to check status');
+        throw new Error(`Status check failed: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -175,7 +177,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
+      if (!session) throw new Error('No session found');
 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
@@ -203,7 +205,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
+      
+      const response = await fetch(generateUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -213,7 +217,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
           category: apiCategory,
-          userId: user.id,
         }),
       });
 
@@ -225,12 +228,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const { taskId } = await response.json();
       if (!taskId) throw new Error('No task ID received from generation endpoint');
-
-      // Update the generation record with the task ID
-      await supabase
-        .from('generations')
-        .update({ task_id: taskId })
-        .eq('id', generation.id);
 
       statusInterval = window.setInterval(async () => {
         const { status, resultUrl } = await checkGenerationStatus(taskId);
