@@ -25,25 +25,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`
-          }
         });
 
         if (error) {
           if (error.message.includes('already registered') || error.message.includes('already exists')) {
             setError('Bu email adresi zaten kayıtlı. Giriş yapmak için "Giriş Yap" butonuna tıklayın.');
+            setIsSignUp(false);
           } else {
             throw error;
           }
-        } else if (data.user) {
+        } else {
           setSuccess(true);
+          setEmail('');
+          setPassword('');
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -54,7 +54,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           } else {
             throw error;
           }
-        } else if (data.user) {
+        } else {
           onClose();
         }
       }
@@ -84,7 +84,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="text-center">
             <p className="text-green-400 mb-4">Hesabınız başarıyla oluşturuldu!</p>
             <button
-              onClick={() => setIsSignUp(false)}
+              onClick={() => {
+                setIsSignUp(false);
+                setSuccess(false);
+              }}
               className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
             >
               Şimdi giriş yapın
@@ -103,6 +106,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -117,6 +121,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-[#F8D74B] focus:border-transparent"
                 required
+                disabled={loading}
+                minLength={6}
               />
             </div>
 
@@ -143,6 +149,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                       setError(null);
                     }}
                     className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
+                    disabled={loading}
                   >
                     Giriş Yap
                   </button>
@@ -157,6 +164,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                       setError(null);
                     }}
                     className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
+                    disabled={loading}
                   >
                     Kayıt Ol
                   </button>
