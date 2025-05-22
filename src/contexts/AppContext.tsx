@@ -124,6 +124,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsModelGenerating(true);
     setIsModelReady(false);
     
+    // Simulate AI model generation
     setTimeout(() => {
       setIsModelGenerating(false);
       setIsModelReady(true);
