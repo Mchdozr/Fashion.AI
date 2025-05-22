@@ -226,10 +226,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
-          model_image: modelImageUrl,
-          garment_image: garmentImageUrl,
-          category: apiCategory,
-          generation_id: generation.id
+          p_model_image: modelImageUrl,
+          p_garment_image: garmentImageUrl,
+          p_category: apiCategory,
+          p_generation_id: generation.id
         }),
       });
 
