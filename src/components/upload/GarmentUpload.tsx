@@ -5,7 +5,43 @@ import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
 
 const GarmentUpload: React.FC = () => {
-  const { garmentImage, setGarmentImage, category, setCategory } = useAppContext();
+  const { 
+    garmentImage, 
+    setGarmentImage, 
+    category, 
+    setCategory,
+    modelImage,
+    isModelReady,
+    startGeneration,
+    isGenerating,
+    user
+  } = useAppContext();
+
+  const handleGarmentUpload = async (imageUrl: string) => {
+    setGarmentImage(imageUrl);
+    
+    // Otomatik olarak birleştirme işlemini başlat
+    if (modelImage && isModelReady && category && user && !isGenerating) {
+      try {
+        await startGeneration();
+      } catch (error) {
+        console.error('Generation failed:', error);
+      }
+    }
+  };
+
+  const handleCategoryChange = async (newCategory: string) => {
+    setCategory(newCategory);
+    
+    // Kategori değiştiğinde ve tüm koşullar sağlandığında otomatik olarak birleştir
+    if (modelImage && garmentImage && isModelReady && user && !isGenerating) {
+      try {
+        await startGeneration();
+      } catch (error) {
+        console.error('Generation failed:', error);
+      }
+    }
+  };
 
   return (
     <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
@@ -24,7 +60,7 @@ const GarmentUpload: React.FC = () => {
       <div className="flex-1 flex flex-col">
         <ImageDropzone 
           image={garmentImage} 
-          onImageChange={setGarmentImage} 
+          onImageChange={handleGarmentUpload} 
           className="flex-1 mb-4"
         />
         
@@ -32,7 +68,7 @@ const GarmentUpload: React.FC = () => {
           <div className="text-sm text-gray-400 mb-2">Category</div>
           <CategorySelector 
             selectedCategory={category}
-            onCategoryChange={setCategory}
+            onCategoryChange={handleCategoryChange}
             categories={[
               { id: 'top', label: 'Top', icon: <ShirtIcon size={20} /> },
               { id: 'bottom', label: 'Bottom', icon: <PantsIcon size={20} /> },
