@@ -5,7 +5,37 @@ import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
 
 const GarmentUpload: React.FC = () => {
-  const { garmentImage, setGarmentImage, category, setCategory } = useAppContext();
+  const { 
+    garmentImage, 
+    setGarmentImage, 
+    category, 
+    setCategory, 
+    modelImage, 
+    isModelReady,
+    startGeneration 
+  } = useAppContext();
+
+  const handleImageChange = async (imageUrl: string) => {
+    setGarmentImage(imageUrl);
+    if (modelImage && isModelReady && category) {
+      try {
+        await startGeneration();
+      } catch (error) {
+        console.error('Auto-generation failed:', error);
+      }
+    }
+  };
+
+  const handleCategoryChange = async (newCategory: string) => {
+    setCategory(newCategory);
+    if (modelImage && garmentImage && isModelReady) {
+      try {
+        await startGeneration();
+      } catch (error) {
+        console.error('Auto-generation failed:', error);
+      }
+    }
+  };
 
   return (
     <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
@@ -24,7 +54,7 @@ const GarmentUpload: React.FC = () => {
       <div className="flex-1 flex flex-col">
         <ImageDropzone 
           image={garmentImage} 
-          onImageChange={setGarmentImage} 
+          onImageChange={handleImageChange} 
           className="flex-1 mb-4"
         />
         
@@ -32,7 +62,7 @@ const GarmentUpload: React.FC = () => {
           <div className="text-sm text-gray-400 mb-2">Category</div>
           <CategorySelector 
             selectedCategory={category}
-            onCategoryChange={setCategory}
+            onCategoryChange={handleCategoryChange}
             categories={[
               { id: 'top', label: 'Top', icon: <ShirtIcon size={20} /> },
               { id: 'bottom', label: 'Bottom', icon: <PantsIcon size={20} /> },

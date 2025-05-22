@@ -4,7 +4,14 @@ import ImageDropzone from '../ui/ImageDropzone';
 import { useAppContext } from '../../contexts/AppContext';
 
 const ModelUpload: React.FC = () => {
-  const { modelImage, setModelImage, generateAIModel, isModelGenerating } = useAppContext();
+  const { modelImage, setModelImage, generateAIModel, isModelGenerating, garmentImage } = useAppContext();
+
+  const handleImageChange = (imageUrl: string) => {
+    setModelImage(imageUrl);
+    if (garmentImage) {
+      generateAIModel();
+    }
+  };
 
   return (
     <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
@@ -23,7 +30,7 @@ const ModelUpload: React.FC = () => {
       <div className="flex-1 flex flex-col">
         <ImageDropzone 
           image={modelImage} 
-          onImageChange={setModelImage} 
+          onImageChange={handleImageChange} 
           className="flex-1 mb-4"
         />
         
