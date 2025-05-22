@@ -11,12 +11,17 @@ const ResultPreview: React.FC = () => {
     generationStatus,
     startGeneration,
     isModelReady,
-    category
+    category,
+    user
   } = useAppContext();
 
-  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating;
+  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating && user;
 
   const getStatusMessage = () => {
+    if (!user) {
+      return 'Please sign in to generate';
+    }
+    
     switch (generationStatus) {
       case 'pending':
         return 'Waiting to start...';
