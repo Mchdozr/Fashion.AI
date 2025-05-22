@@ -142,10 +142,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!session) throw new Error('No active session found');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${generation.task_id}`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/check_generation_status`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
+        body: JSON.stringify({
+          task_id: generation.task_id
+        }),
       });
 
       if (!response.ok) {
@@ -221,16 +227,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (insertError) throw insertError;
       if (!generation) throw new Error('Failed to create generation record');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/start_generation`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
-          modelImage: modelImageUrl,
-          garmentImage: garmentImageUrl,
+          model_image: modelImageUrl,
+          garment_image: garmentImageUrl,
           category: apiCategory,
+          generation_id: generation.id
         }),
       });
 
