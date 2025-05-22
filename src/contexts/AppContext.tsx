@@ -148,8 +148,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Status check failed: ${response.statusText}`);
       }
 
-      const { status, resultUrl } = await response.json();
-      return { status, resultUrl };
+      const data = await response.json();
+      return { status: data.status, resultUrl: data.resultUrl };
     } catch (error) {
       console.error('Error checking status:', error);
       return { status: 'failed', resultUrl: null };
@@ -171,6 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
+    setResultImage(null);
     
     let statusInterval: number | undefined;
 
