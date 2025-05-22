@@ -216,6 +216,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       await delay(2000); // Initial delay before first status check
 
+      let retryCount = 0;
+      const maxRetries = 30; // 1 minute total (2 second intervals)
+
       const checkStatus = async () => {
         try {
           const { status, resultUrl } = await checkGenerationStatus(taskId);
@@ -224,6 +227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
 
           if (status === 'completed' && resultUrl) {
+            console.log('Generation completed, setting result URL:', resultUrl);
             setResultImage(resultUrl);
             setIsGenerating(false);
             await fetchUserData(user.id);
@@ -232,6 +236,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsGenerating(false);
             throw new Error('Generation failed');
           }
+
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error('Generation timed out');
+          }
+
           return false;
         } catch (error) {
           console.error('Error in status check:', error);
