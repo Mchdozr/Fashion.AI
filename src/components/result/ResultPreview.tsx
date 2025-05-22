@@ -11,22 +11,15 @@ const ResultPreview: React.FC = () => {
     generationStatus,
     startGeneration,
     isModelReady,
-    category,
-    user
+    category
   } = useAppContext();
 
-  const canGenerate = Boolean(modelImage && garmentImage && category && !isGenerating && user && isModelReady);
+  const canGenerate = modelImage && garmentImage && isModelReady && category && !isGenerating;
 
   const getStatusMessage = () => {
-    if (!user) return 'Please sign in to generate';
-    if (!modelImage) return 'Upload a model photo';
-    if (!garmentImage) return 'Upload a garment photo';
-    if (!category) return 'Select a category';
-    if (!isModelReady) return 'Processing model photo...';
-    
     switch (generationStatus) {
       case 'pending':
-        return 'Starting generation...';
+        return 'Waiting to start...';
       case 'processing':
         return 'Processing your request...';
       case 'completed':
@@ -34,7 +27,7 @@ const ResultPreview: React.FC = () => {
       case 'failed':
         return 'Generation failed. Please try again.';
       default:
-        return 'Ready to generate';
+        return 'Upload images to start';
     }
   };
 
@@ -63,7 +56,7 @@ const ResultPreview: React.FC = () => {
           ) : (
             <div className="text-center p-4">
               <div className="text-gray-400 text-sm mb-2">{getStatusMessage()}</div>
-              {(generationStatus === 'processing' || !isModelReady) && (
+              {generationStatus === 'processing' && (
                 <div className="w-24 h-24 mx-auto">
                   <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-[#F8D74B]"></div>
                 </div>
@@ -73,7 +66,7 @@ const ResultPreview: React.FC = () => {
         </div>
         
         <button
-          onClick={() => startGeneration().catch(console.error)}
+          onClick={startGeneration}
           disabled={!canGenerate}
           className={`w-full py-3 rounded-md font-medium flex items-center justify-center transition-all duration-150 ${
             !canGenerate
