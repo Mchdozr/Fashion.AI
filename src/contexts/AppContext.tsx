@@ -32,7 +32,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Map internal categories to API categories
+// API kategori eşleştirmesi
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -138,10 +138,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session found');
 
-      const statusUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status`);
-      statusUrl.searchParams.append('taskId', taskId);
-
-      const response = await fetch(statusUrl, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
@@ -185,7 +182,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
-      // Map the internal category to the API category
+      // API kategorisini eşleştir
       const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
       if (!apiCategory) {
         throw new Error(`Invalid category: ${category}`);
@@ -208,9 +205,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const generateUrl = new URL(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`);
-      
-      const response = await fetch(generateUrl, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
