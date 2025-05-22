@@ -32,6 +32,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// API category mapping
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
