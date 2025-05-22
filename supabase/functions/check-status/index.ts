@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const FASHN_API_KEY = Deno.env.get('FASHN_API_KEY');
+const FASHN_API_KEY = 'fa-CiroGfKMHu6D-RSKwu7ZtZ67E6qySH7AOAM1l';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -25,18 +25,6 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
-    // Get the generation record
-    const { data: generation, error: generationError } = await supabase
-      .from('generations')
-      .select('*')
-      .eq('task_id', taskId)
-      .single();
-
-    if (generationError) {
-      console.error('Generation fetch error:', generationError);
-      throw new Error('Generation not found');
-    }
-
     // Check status from Fashn AI API
     const response = await fetch(`https://api.fashn.ai/v1/status/${taskId}`, {
       headers: {
@@ -51,21 +39,21 @@ Deno.serve(async (req) => {
     const data = await response.json();
     console.log('FashnAI status response:', data);
 
-    let updateData = {
-      status: data.status
-    };
+    let status = data.status;
+    let resultUrl = null;
 
-    if (data.status === 'completed' && data.result_url) {
-      updateData = {
-        ...updateData,
-        result_image_url: data.result_url
-      };
+    if (status === 'completed' && data.output && data.output.length > 0) {
+      status = 'completed';
+      resultUrl = data.output[0];
     }
 
     // Update generation status
     const { error: updateError } = await supabase
       .from('generations')
-      .update(updateData)
+      .update({
+        status: status,
+        result_image_url: resultUrl
+      })
       .eq('task_id', taskId);
 
     if (updateError) {
@@ -76,8 +64,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        status: data.status, 
-        resultUrl: data.result_url 
+        status: status,
+        resultUrl: resultUrl
       }),
       {
         headers: {
