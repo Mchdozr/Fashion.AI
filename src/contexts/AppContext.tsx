@@ -32,6 +32,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const categoryMapping = {
+  'top': 'tops',
+  'bottom': 'bottoms',
+  'full-body': 'one-pieces'
+} as const;
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [modelImage, setModelImage] = useState<string | null>(null);
   const [garmentImage, setGarmentImage] = useState<string | null>(null);
@@ -58,9 +66,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        await fetchUserData(session.user.id);
+        fetchUserData(session.user.id);
       } else {
         setUser(null);
         setCredits(0);
@@ -73,7 +81,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const fetchUserData = async (userId: string) => {
-    console.log('Fetching user data for ID:', userId);
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -85,145 +92,89 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
 
-    console.log('User data fetched:', data);
     setUser(data);
     setCredits(data.credits);
   };
 
   const uploadImage = async (imageDataUrl: string): Promise<string> => {
-    console.log('Starting image upload...');
     const response = await fetch(imageDataUrl);
     const blob = await response.blob();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
     
-    console.log('Uploading image to Supabase Storage:', fileName);
     const { data, error } = await supabase.storage
       .from('images')
       .upload(fileName, blob);
 
-    if (error) {
-      console.error('Image upload error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     const { data: { publicUrl } } = supabase.storage
       .from('images')
       .getPublicUrl(fileName);
 
-    console.log('Image uploaded successfully:', publicUrl);
     return publicUrl;
   };
 
   const generateAIModel = () => {
     if (!modelImage) return;
     
-    console.log('Starting AI model generation...');
     setIsModelGenerating(true);
     setIsModelReady(false);
     
     setTimeout(() => {
-      console.log('AI model generation completed');
       setIsModelGenerating(false);
       setIsModelReady(true);
     }, 3000);
   };
 
-  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl: string | null }> => {
-    try {
-      console.log('Checking generation status for task:', taskId);
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Session error: Unable to get current session');
-      }
-      
-      if (!session) {
-        console.error('No active session found');
-        throw new Error('No active session. Please sign in again.');
-      }
+  const checkGenerationStatus = async (taskId: string): Promise<{ status: string; resultUrl?: string }> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No session found');
 
-      console.log('Making status check request...');
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+    });
 
-      console.log('Status check response:', response.status);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.log('Token expired, attempting refresh...');
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError || !refreshData.session) {
-            console.error('Session refresh failed:', refreshError);
-            throw new Error('Session expired. Please sign in again.');
-          }
-          console.log('Session refreshed, retrying status check...');
-          const retryResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
-            headers: {
-              'Authorization': `Bearer ${refreshData.session.access_token}`,
-            },
-          });
-          if (!retryResponse.ok) {
-            const errorData = await retryResponse.json();
-            console.error('Retry status check failed:', errorData);
-            throw new Error(errorData.error || 'Failed to check status after token refresh');
-          }
-          const retryData = await retryResponse.json();
-          console.log('Retry status check successful:', retryData);
-          return retryData;
-        }
-        const errorData = await response.json();
-        console.error('Status check failed:', errorData);
-        throw new Error(errorData.error || 'Failed to check status');
-      }
-
-      const data = await response.json();
-      console.log('Status check successful:', data);
-      return data;
-    } catch (error) {
-      console.error('Error in checkGenerationStatus:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error('Failed to check status');
     }
+
+    const data = await response.json();
+    console.log('Status check response:', data);
+
+    if (!data.success) {
+      throw new Error(data.error || 'Status check failed');
+    }
+
+    return {
+      status: data.status,
+      resultUrl: data.resultUrl
+    };
   };
 
   const startGeneration = async () => {
-    console.log('Starting generation with params:', {
-      hasModelImage: !!modelImage,
-      hasGarmentImage: !!garmentImage,
-      isModelReady,
-      category,
-      hasUser: !!user
-    });
-
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
-    }
-
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      throw new Error('Session error: Unable to get current session');
-    }
-    
-    if (!session) {
-      console.error('No active session found');
-      throw new Error('No active session. Please sign in again.');
     }
     
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
+    setResultImage(null);
     
     try {
-      console.log('Uploading images...');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session found');
+
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
-      console.log('Creating generation record...');
+      const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
+      if (!apiCategory) {
+        throw new Error(`Invalid category: ${category}`);
+      }
+
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
@@ -239,12 +190,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Generation record creation failed:', insertError);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      console.log('Starting generation API call...');
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
@@ -254,106 +201,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify({
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
-          category,
-          userId: user.id,
+          category: apiCategory,
         }),
       });
 
-      console.log('Generation API response:', response.status);
-
       if (!response.ok) {
-        if (response.status === 401) {
-          console.log('Token expired, attempting refresh...');
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError || !refreshData.session) {
-            console.error('Session refresh failed:', refreshError);
-            throw new Error('Session expired. Please sign in again.');
-          }
-          console.log('Session refreshed, retrying generation...');
-          const retryResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${refreshData.session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              modelImage: modelImageUrl,
-              garmentImage: garmentImageUrl,
-              category,
-              userId: user.id,
-            }),
-          });
-          if (!retryResponse.ok) {
-            const errorData = await retryResponse.json();
-            console.error('Retry generation failed:', errorData);
-            throw new Error(errorData.error || 'Failed to start generation after token refresh');
-          }
-          const retryData = await retryResponse.json();
-          console.log('Retry generation successful:', retryData);
-          await pollStatus(retryData.taskId, user.id);
-          return;
-        }
         const errorData = await response.json();
-        console.error('Generation API error:', errorData);
         throw new Error(errorData.error || 'Failed to start generation');
       }
 
-      const data = await response.json();
-      console.log('Generation started successfully:', data);
-      await pollStatus(data.taskId, user.id);
+      const { taskId } = await response.json();
+      if (!taskId) throw new Error('No task ID received');
+
+      await delay(2000); // Initial delay before first status check
+
+      const checkStatus = async () => {
+        try {
+          const { status, resultUrl } = await checkGenerationStatus(taskId);
+          
+          setGenerationStatus(status);
+          setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
+
+          if (status === 'completed' && resultUrl) {
+            setResultImage(resultUrl);
+            setIsGenerating(false);
+            await fetchUserData(user.id);
+            return true;
+          } else if (status === 'failed') {
+            setIsGenerating(false);
+            throw new Error('Generation failed');
+          }
+          return false;
+        } catch (error) {
+          console.error('Error in status check:', error);
+          throw error;
+        }
+      };
+
+      // Poll for status every 2 seconds
+      const pollInterval = setInterval(async () => {
+        try {
+          const isComplete = await checkStatus();
+          if (isComplete) {
+            clearInterval(pollInterval);
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          setIsGenerating(false);
+          setGenerationStatus('failed');
+          console.error('Error polling status:', error);
+        }
+      }, 2000);
+
+      // Clear interval after 5 minutes (timeout)
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (generationStatus !== 'completed') {
+          setGenerationStatus('failed');
+          setIsGenerating(false);
+        }
+      }, 300000);
 
     } catch (error) {
-      console.error('Error in startGeneration:', error);
+      console.error('Error generating try-on:', error);
       setGenerationStatus('failed');
       setIsGenerating(false);
       throw error;
     }
-  };
-
-  const pollStatus = async (taskId: string, userId: string) => {
-    let attempts = 0;
-    const maxAttempts = 30; // 1 minute timeout (2s * 30)
-    const pollInterval = 2000; // 2 seconds
-
-    const poll = async () => {
-      if (attempts >= maxAttempts) {
-        console.error('Generation timed out after', attempts, 'attempts');
-        throw new Error('Generation timed out');
-      }
-
-      attempts++;
-      console.log(`Polling attempt ${attempts}/${maxAttempts} for task:`, taskId);
-
-      try {
-        const { status, resultUrl } = await checkGenerationStatus(taskId);
-        
-        console.log('Poll status result:', { status, resultUrl });
-        
-        setGenerationStatus(status as 'pending' | 'processing' | 'completed' | 'failed');
-        setGenerationProgress(status === 'completed' ? 100 : status === 'processing' ? 50 : 0);
-
-        if (status === 'completed' && resultUrl) {
-          console.log('Generation completed successfully');
-          setResultImage(resultUrl);
-          setIsGenerating(false);
-          await fetchUserData(userId);
-          return;
-        } else if (status === 'failed') {
-          console.error('Generation failed');
-          throw new Error('Generation failed');
-        }
-
-        console.log('Scheduling next poll attempt...');
-        setTimeout(() => poll(), pollInterval);
-      } catch (error) {
-        console.error('Error in status check:', error);
-        setGenerationStatus('failed');
-        setIsGenerating(false);
-        throw error;
-      }
-    };
-
-    await poll();
   };
 
   return (
