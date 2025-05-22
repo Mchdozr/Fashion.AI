@@ -132,20 +132,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const checkGenerationStatus = async (taskId: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session found');
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/check_generation_status`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-status?taskId=${taskId}`, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        method: 'POST',
-        body: JSON.stringify({ task_id: taskId }),
       });
 
       if (!response.ok) {
-        throw new Error(`Status check failed: ${response.statusText}`);
+        throw new Error('Failed to check status');
       }
 
       const data = await response.json();
@@ -176,9 +170,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let statusInterval: number | undefined;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session found');
-
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
 
@@ -205,19 +196,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/start_generation`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          model_image_url: modelImageUrl,
-          garment_image_url: garmentImageUrl,
+          modelImage: modelImageUrl,
+          garmentImage: garmentImageUrl,
           category: apiCategory,
-          generation_id: generation.id
+          userId: user.id,
         }),
       });
 
