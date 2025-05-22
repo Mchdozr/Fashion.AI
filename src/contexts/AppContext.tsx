@@ -40,7 +40,7 @@ const categoryMapping = {
 } as const;
 
 const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
-const FASHN_API_URL = 'https://api.fashn.ai/api/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -124,27 +124,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsModelGenerating(true);
     setIsModelReady(false);
     
-    // Simulate model generation
     setTimeout(() => {
       setIsModelGenerating(false);
       setIsModelReady(true);
     }, 3000);
-  };
-
-  const parseApiResponse = async (response: Response) => {
-    const contentType = response.headers.get('content-type');
-    if (!contentType?.includes('application/json')) {
-      const textResponse = await response.text();
-      console.error('Non-JSON response from API:', textResponse);
-      throw new Error(`API returned non-JSON response: ${textResponse}`);
-    }
-
-    try {
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to parse JSON response:', error);
-      throw new Error('Invalid JSON response from API');
-    }
   };
 
   const startGeneration = async () => {
@@ -166,14 +149,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Invalid category: ${category}`);
       }
 
-      // Call FashnAI API
-      console.log('Calling FashnAI API with:', {
-        model_image: modelImageUrl,
-        garment_image: garmentImageUrl,
-        category: apiCategory
-      });
+      // Create generation record
+      const { data: generation, error: insertError } = await supabase
+        .from('generations')
+        .insert({
+          user_id: user.id,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
+          category: category,
+          performance_mode: performanceMode,
+          num_samples: numSamples,
+          seed: seed,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-      const response = await fetch(`${FASHN_API_URL}/generations`, {
+      if (insertError) throw insertError;
+
+      // Call FashnAI API
+      const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,42 +182,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await parseApiResponse(response);
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
         throw new Error(errorData.message || `API request failed: ${response.statusText}`);
       }
 
-      const data = await parseApiResponse(response);
+      const data = await response.json();
       console.log('FashnAI API response:', data);
 
-      if (!data.task_id) {
+      if (!data.id) {
         throw new Error('No task ID received from API');
       }
 
-      // Create generation record
-      const { data: generation, error: insertError } = await supabase
+      // Update generation with task ID
+      await supabase
         .from('generations')
-        .insert({
-          user_id: user.id,
-          model_image_url: modelImageUrl,
-          garment_image_url: garmentImageUrl,
-          category: category,
-          performance_mode: performanceMode,
-          num_samples: numSamples,
-          seed: seed,
-          task_id: data.task_id,
+        .update({ 
+          task_id: data.id,
           status: 'processing'
         })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
+        .eq('id', generation.id);
 
       // Start polling for status
       let attempts = 0;
-      const maxAttempts = 30; // 1 minute maximum
+      const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/generations/${data.task_id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
@@ -232,7 +217,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error(`Status check failed: ${statusResponse.statusText}`);
           }
 
-          const statusData = await parseApiResponse(statusResponse);
+          const statusData = await statusResponse.json();
           console.log('Status check response:', statusData);
 
           if (statusData.status === 'completed' && statusData.result_url) {
@@ -262,13 +247,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Generation timed out');
           }
 
+          // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
+          await delay(1000); // Wait 1 second between checks
 
         } catch (error) {
           clearInterval(pollInterval);
           setGenerationStatus('failed');
           setIsGenerating(false);
           console.error('Status check error:', error);
+          throw error;
         }
       }, 2000);
 
