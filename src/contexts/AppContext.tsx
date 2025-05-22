@@ -204,7 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await delay(2000); // Initial delay before first status check
 
       let retryCount = 0;
-      const maxRetries = 30; // 1 minute total (2 second intervals)
+      const maxRetries = 150; // 5 minutes total (2 second intervals)
 
       const checkStatus = async () => {
         try {
@@ -251,14 +251,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }, 2000);
 
-      // Clear interval after 5 minutes (timeout)
+      // Clear interval after 10 minutes (timeout)
       setTimeout(() => {
         clearInterval(pollInterval);
         if (generationStatus !== 'completed') {
           setGenerationStatus('failed');
           setIsGenerating(false);
         }
-      }, 300000);
+      }, 600000);
 
     } catch (error) {
       console.error('Error generating try-on:', error);
