@@ -5,7 +5,6 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
-// API category mapping
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -168,7 +167,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (insertError) throw insertError;
 
       // Call FashnAI API
-      const response = await fetch(`${FASHN_API_URL}/run`, {
+      const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +188,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const data = await response.json();
       console.log('FashnAI API response:', data);
 
-      if (!data.id) {
+      if (!data.task_id) {
         throw new Error('No task ID received from API');
       }
 
@@ -197,7 +196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await supabase
         .from('generations')
         .update({ 
-          task_id: data.id,
+          task_id: data.task_id,
           status: 'processing'
         })
         .eq('id', generation.id);
@@ -207,7 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
@@ -257,7 +256,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(1000); // Wait 1 second between checks
+          await delay(2000); // Wait 2 seconds between checks
 
         } catch (error) {
           clearInterval(pollInterval);
