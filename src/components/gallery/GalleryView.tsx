@@ -23,8 +23,8 @@ const GalleryView: React.FC = () => {
 
       if (error) throw error;
       
-      // Filter out generations without result images
-      const completedGenerations = data?.filter(gen => gen.result_image_url) || [];
+      // Only show completed generations with result images
+      const completedGenerations = data?.filter(gen => gen.status === 'completed' && gen.result_image_url) || [];
       setGenerations(completedGenerations);
     } catch (error) {
       console.error('Error fetching generations:', error);
