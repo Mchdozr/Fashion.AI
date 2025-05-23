@@ -175,10 +175,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       console.log('Making API request with:', {
         url: `${FASHN_API_URL}/generate`,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${FASHN_API_KEY}`
-        },
         body: requestBody
       });
 
@@ -197,11 +193,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const errorData = await response.json();
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch (e) {
-          // If parsing JSON fails, use the status text
           errorMessage = `${errorMessage}: ${response.statusText}`;
         }
 
-        // Handle rate limiting specifically
         if (response.status === 429) {
           errorMessage = 'Rate limit exceeded. Please try again in a few minutes.';
         }
