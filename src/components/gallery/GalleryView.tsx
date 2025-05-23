@@ -24,7 +24,6 @@ const GalleryView: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
       setGenerations(data || []);
     } catch (error) {
       console.error('Error fetching generations:', error);
