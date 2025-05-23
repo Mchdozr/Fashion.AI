@@ -141,7 +141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     try {
       // First, make the API call
-      const response = await fetch(`${FASHN_API_URL}/try-on`, {
+      const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/try-on/${data.task_id}/status`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
