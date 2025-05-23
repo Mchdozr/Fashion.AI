@@ -166,41 +166,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API with enhanced error handling
-      const requestBody = {
-        model_image: modelImageUrl,
-        garment_image: garmentImageUrl,
-        category: apiCategory
-      };
-
-      console.log('Making API request with:', {
-        url: `${FASHN_API_URL}/generations`,
-        body: requestBody
-      });
-
-      const response = await fetch(`${FASHN_API_URL}/generations`, {
+      // Call FashnAI API
+      const response = await fetch(`${FASHN_API_URL}/try-on`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${FASHN_API_KEY}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          model_image: modelImageUrl,
+          garment_image: garmentImageUrl,
+          category: apiCategory,
+          performance_mode: performanceMode,
+          num_samples: numSamples,
+          seed: seed
+        })
       });
 
       if (!response.ok) {
-        let errorMessage = `API request failed with status ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = `${errorMessage}: ${response.statusText}`;
-        }
-
-        if (response.status === 429) {
-          errorMessage = 'Rate limit exceeded. Please try again in a few minutes.';
-        }
-
-        throw new Error(errorMessage);
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -224,31 +209,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/generations/${data.task_id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/try-on/${data.task_id}/status`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
           });
 
           if (!statusResponse.ok) {
-            let errorMessage = `Status check failed with status ${statusResponse.status}`;
-            try {
-              const errorData = await statusResponse.json();
-              errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch (e) {
-              errorMessage = `${errorMessage}: ${statusResponse.statusText}`;
-            }
-            throw new Error(errorMessage);
+            throw new Error(`Status check failed: ${statusResponse.statusText}`);
           }
 
           const statusData = await statusResponse.json();
           console.log('Status check response:', statusData);
 
-          if (statusData.status === 'completed' && statusData.output?.[0]) {
+          if (statusData.status === 'completed' && statusData.result_url) {
             clearInterval(pollInterval);
             setGenerationStatus('completed');
             setGenerationProgress(100);
-            setResultImage(statusData.output[0]);
+            setResultImage(statusData.result_url);
             setIsGenerating(false);
 
             // Update generation record with result URL
@@ -256,7 +234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.output[0],
+                result_image_url: statusData.result_url,
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
@@ -276,7 +254,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           attempts++;
           if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            throw new Error('Generation timed out after 2 minutes');
+            throw new Error('Generation timed out');
           }
 
           // Calculate progress based on attempts

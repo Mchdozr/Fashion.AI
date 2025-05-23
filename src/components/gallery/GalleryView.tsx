@@ -19,13 +19,13 @@ const GalleryView: React.FC = () => {
       const { data, error } = await supabase
         .from('generations')
         .select('*')
+        .eq('status', 'completed')
+        .not('result_image_url', 'is', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Only show completed generations with result images
-      const completedGenerations = data?.filter(gen => gen.status === 'completed' && gen.result_image_url) || [];
-      setGenerations(completedGenerations);
+      setGenerations(data || []);
     } catch (error) {
       console.error('Error fetching generations:', error);
     } finally {
