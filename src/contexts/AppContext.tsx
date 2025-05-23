@@ -166,23 +166,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API
+      // Call FashnAI API with enhanced error handling
+      const requestBody = {
+        model_image: modelImageUrl,
+        garment_image: garmentImageUrl,
+        category: apiCategory
+      };
+
+      console.log('Making API request with:', {
+        url: `${FASHN_API_URL}/generate`,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${FASHN_API_KEY}`
+        },
+        body: requestBody
+      });
+
       const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${FASHN_API_KEY}`
         },
-        body: JSON.stringify({
-          model_image: modelImageUrl,
-          garment_image: garmentImageUrl,
-          category: apiCategory
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
+        let errorMessage = `API request failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          // If parsing JSON fails, use the status text
+          errorMessage = `${errorMessage}: ${response.statusText}`;
+        }
+
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          errorMessage = 'Rate limit exceeded. Please try again in a few minutes.';
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -213,7 +237,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           });
 
           if (!statusResponse.ok) {
-            throw new Error(`Status check failed: ${statusResponse.statusText}`);
+            let errorMessage = `Status check failed with status ${statusResponse.status}`;
+            try {
+              const errorData = await statusResponse.json();
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+              errorMessage = `${errorMessage}: ${statusResponse.statusText}`;
+            }
+            throw new Error(errorMessage);
           }
 
           const statusData = await statusResponse.json();
@@ -245,13 +276,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
-            throw new Error('Generation failed');
+            throw new Error(statusData.error || 'Generation failed');
           }
 
           attempts++;
           if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            throw new Error('Generation timed out');
+            throw new Error('Generation timed out after 2 minutes');
           }
 
           // Calculate progress based on attempts
