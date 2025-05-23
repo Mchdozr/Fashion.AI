@@ -114,7 +114,7 @@ const GalleryView: React.FC = () => {
             >
               <div className="aspect-[3/4] relative group">
                 <img
-                  src={generation.result_image_url}
+                  src={generation.result_image_url!}
                   alt="Generated result"
                   className="w-full h-full object-cover"
                 />

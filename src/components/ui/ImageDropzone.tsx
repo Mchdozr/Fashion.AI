@@ -36,18 +36,19 @@ const ImageDropzone: React.FC<ImageDropzoneProps> = ({ image, onImageChange, cla
   return (
     <div 
       {...getRootProps()} 
-      className={`${className} bg-[#1A1A1A] border-2 border-dashed border-[#333333] rounded-lg cursor-pointer transition-colors duration-150 ${
+      className={`h-full ${className} bg-[#1A1A1A] border-2 border-dashed border-[#333333] rounded-lg cursor-pointer transition-colors duration-150 ${
         isDragActive ? 'border-[#F8D74B] bg-[#262626]' : 'hover:border-gray-500'
       }`}
     >
       <input {...getInputProps()} />
       
       {image ? (
-        <div className="w-full h-full flex items-center justify-center p-2">
+        <div className="w-full h-full flex items-center justify-center p-4">
           <img 
             src={image} 
             alt="Uploaded" 
             className="max-w-full max-h-full object-contain rounded"
+            style={{ maxHeight: 'calc(100% - 2rem)' }}
           />
         </div>
       ) : (

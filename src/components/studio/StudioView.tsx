@@ -10,15 +10,23 @@ const StudioView: React.FC = () => {
 
   return (
     <main className="p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        <ModelUpload />
-        <GarmentUpload />
-        <div className="flex flex-col space-y-4">
-          <ResultPreview />
-          <GenerationSettings />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="h-[600px]">
+          <ModelUpload />
+        </div>
+        <div className="h-[600px]">
+          <GarmentUpload />
+        </div>
+        <div className="h-[600px] flex flex-col">
+          <div className="flex-1">
+            <ResultPreview />
+          </div>
+          <div className="mt-4">
+            <GenerationSettings />
+          </div>
           
           {isGenerating && (
-            <div className="bg-[#222222] p-4 rounded-lg border border-[#333333]">
+            <div className="bg-[#222222] p-4 rounded-lg border border-[#333333] mt-4">
               <div className="mb-2 flex justify-between items-center">
                 <span className="text-sm font-medium">Generating...</span>
                 <span className="text-sm text-gray-400">{Math.round(generationProgress)}%</span>
