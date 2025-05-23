@@ -11,7 +11,7 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_KEY = 'fa-iQa1OKRmNJzZ-g3pGGx1kbQtbpE8ISD21kz1K';
 const FASHN_API_URL = 'https://api.fashn.ai/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
