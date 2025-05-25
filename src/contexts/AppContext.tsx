@@ -12,7 +12,7 @@ const categoryMapping = {
 } as const;
 
 const FASHN_API_KEY = 'fa-xRYYLHSww4h2-dZJDxv4U9QqXwMzSiaKbsbBG';
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/api/v1'; // Updated API URL with correct path
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -162,8 +162,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API
-      const response = await fetch(`${FASHN_API_URL}/generate`, {
+      // Call FashnAI API with updated endpoint
+      const response = await fetch(`${FASHN_API_URL}/generations`, { // Updated endpoint path
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,12 +200,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         })
         .eq('id', generation.id);
 
-      // Start polling for status
+      // Start polling for status with updated endpoint
       let attempts = 0;
       const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/generations/${data.task_id}/status`, { // Updated status endpoint
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
