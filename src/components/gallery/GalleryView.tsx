@@ -157,4 +157,4 @@ const GalleryView: React.FC = () => {
   );
 };
 
-export default GalleryView
+export default GalleryView;
