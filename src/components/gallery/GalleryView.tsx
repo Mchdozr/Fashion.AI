@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/database.types';
-import { Download, Heart, Calendar, Clock } from 'lucide-react';
+import { Download, Heart, Calendar, Clock, RefreshCw } from 'lucide-react';
 
 type Generation = Database['public']['Tables']['generations']['Row'];
 
@@ -9,23 +9,44 @@ const GalleryView: React.FC = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'liked'>('all');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchGenerations();
-  }, []);
+    
+    // Set up real-time subscription for new generations
+    const channel = supabase
+      .channel('generations_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'generations',
+          filter: 'status=eq.completed'
+        },
+        () => {
+          fetchGenerations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshKey]);
 
   const fetchGenerations = async () => {
     try {
       const { data, error } = await supabase
         .from('generations')
         .select('*')
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Filter out generations without result images
-      const completedGenerations = data?.filter(gen => gen.result_image_url) || [];
-      setGenerations(completedGenerations);
+      setGenerations(data || []);
     } catch (error) {
       console.error('Error fetching generations:', error);
     } finally {
@@ -48,6 +69,11 @@ const GalleryView: React.FC = () => {
     } catch (error) {
       console.error('Error downloading image:', error);
     }
+  };
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setRefreshKey(prev => prev + 1);
   };
 
   const formatDate = (date: string) => {
@@ -78,6 +104,13 @@ const GalleryView: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">My Gallery</h2>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={handleRefresh}
+            className="p-2 rounded-full hover:bg-[#333333] transition-colors duration-150"
+            title="Refresh gallery"
+          >
+            <RefreshCw size={20} className="text-gray-400" />
+          </button>
           <button
             onClick={() => setSelectedFilter('all')}
             className={`px-4 py-2 rounded-md transition-colors duration-150 ${
