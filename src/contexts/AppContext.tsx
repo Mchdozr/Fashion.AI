@@ -12,7 +12,7 @@ const categoryMapping = {
 } as const;
 
 const FASHN_API_KEY = import.meta.env.VITE_FASHN_API_KEY;
-const FASHN_API_URL = 'https://api.fashn.ai/api/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -165,9 +165,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      console.log('Making API request to:', `${FASHN_API_URL}/generations`);
+      console.log('Making API request to:', `${FASHN_API_URL}/generate`);
       
-      const response = await fetch(`${FASHN_API_URL}/generations`, {
+      const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
