@@ -11,7 +11,7 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_KEY = 'fa-xRYYLHSww4h2-dZJDxv4U9QqXwMzSiaKbsbBG';
 const FASHN_API_URL = 'https://api.fashn.ai/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -140,7 +140,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setResultImage(null);
 
     try {
-      // First, make the API call
+      // First, upload the images to get public URLs
+      const modelImageUrl = await uploadImage(modelImage);
+      const garmentImageUrl = await uploadImage(garmentImage);
+
+      // Create generation record first
+      const { data: generation, error: insertError } = await supabase
+        .from('generations')
+        .insert({
+          user_id: user.id,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
+          category: category,
+          performance_mode: performanceMode,
+          num_samples: numSamples,
+          seed: seed,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Call FashnAI API
       const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
@@ -148,8 +170,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           'Authorization': `Bearer ${FASHN_API_KEY}`
         },
         body: JSON.stringify({
-          model_image: modelImage,
-          garment_image: garmentImage,
+          model_image: modelImageUrl,
+          garment_image: garmentImageUrl,
           category: categoryMapping[category as keyof typeof categoryMapping],
           performance_mode: performanceMode,
           num_samples: numSamples,
@@ -169,37 +191,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error('No task ID received from API');
       }
 
-      // After successful API call, upload images and create generation record
-      let modelImageUrl: string;
-      let garmentImageUrl: string;
-      
-      try {
-        modelImageUrl = await uploadImage(modelImage);
-        garmentImageUrl = await uploadImage(garmentImage);
-      } catch (error) {
-        throw new Error(`Failed to upload images: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-
-      // Create generation record
-      const { data: generation, error: insertError } = await supabase
+      // Update generation with task ID
+      await supabase
         .from('generations')
-        .insert({
-          user_id: user.id,
-          model_image_url: modelImageUrl,
-          garment_image_url: garmentImageUrl,
-          category: category,
-          performance_mode: performanceMode,
-          num_samples: numSamples,
-          seed: seed,
-          status: 'processing',
-          task_id: data.task_id
+        .update({ 
+          task_id: data.task_id,
+          status: 'processing'
         })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw new Error(`Failed to create generation record: ${insertError.message}`);
-      }
+        .eq('id', generation.id);
 
       // Start polling for status
       let attempts = 0;
