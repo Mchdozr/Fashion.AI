@@ -131,6 +131,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const startGeneration = async () => {
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
+      console.error('Missing required data:', {
+        modelImage: !!modelImage,
+        garmentImage: !!garmentImage,
+        isModelReady,
+        category,
+        user: !!user
+      });
       throw new Error('Missing required data for generation');
     }
     
@@ -144,15 +151,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const apiCategory = categoryMapping[category as keyof typeof categoryMapping];
       if (!apiCategory) {
+        console.error('Invalid category mapping:', { category, availableCategories: Object.keys(categoryMapping) });
         throw new Error(`Invalid category: ${category}`);
       }
+
+      console.log('Starting FashnAI API request with:', {
+        modelImageUrl,
+        garmentImageUrl,
+        category: apiCategory
+      });
 
       // Call FashnAI API first
       const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${FASHN_API_KEY}`
+          'Authorization': `Bearer ${FASHN_API_KEY}`,
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           model_image: modelImageUrl,
@@ -162,14 +177,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        
+        console.error('FashnAI API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          error: errorData
+        });
+        
+        throw new Error(
+          errorData.message || 
+          `API request failed with status ${response.status}: ${response.statusText}`
+        );
       }
 
       const data = await response.json();
       console.log('FashnAI API response:', data);
 
       if (!data.task_id) {
+        console.error('Invalid API response:', data);
         throw new Error('No task ID received from API');
       }
 
@@ -190,7 +223,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error creating generation record:', insertError);
+        throw insertError;
+      }
 
       // Start polling for status
       let attempts = 0;
@@ -199,11 +235,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
           const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
             headers: {
-              'Authorization': `Bearer ${FASHN_API_KEY}`
+              'Authorization': `Bearer ${FASHN_API_KEY}`,
+              'Accept': 'application/json'
             }
           });
 
           if (!statusResponse.ok) {
+            const errorText = await statusResponse.text();
+            console.error('Status check failed:', {
+              status: statusResponse.status,
+              statusText: statusResponse.statusText,
+              error: errorText
+            });
             throw new Error(`Status check failed: ${statusResponse.statusText}`);
           }
 
@@ -220,7 +263,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setIsGenerating(false);
 
             // Then update database
-            await supabase
+            const { error: updateError } = await supabase
               .from('generations')
               .update({
                 status: 'completed',
@@ -229,18 +272,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               })
               .eq('id', generation.id);
 
+            if (updateError) {
+              console.error('Error updating generation record:', updateError);
+            }
+
             // Refresh user data
             await fetchUserData(user.id);
 
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
-            throw new Error('Generation failed');
+            console.error('Generation failed:', statusData);
+            throw new Error(statusData.error || 'Generation failed');
           }
 
           attempts++;
           if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            throw new Error('Generation timed out');
+            throw new Error('Generation timed out after 2 minutes');
           }
 
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
