@@ -12,7 +12,7 @@ const categoryMapping = {
 } as const;
 
 const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/api/v1'; // Updated API URL with correct path
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
