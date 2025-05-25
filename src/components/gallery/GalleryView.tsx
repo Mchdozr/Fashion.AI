@@ -20,10 +20,9 @@ const GalleryView: React.FC = () => {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
-          table: 'generations',
-          filter: 'status=eq.completed'
+          table: 'generations'
         },
         () => {
           fetchGenerations();
