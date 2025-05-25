@@ -165,9 +165,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      console.log('Making API request to:', `${FASHN_API_URL}/generations`);
+      console.log('Making API request to:', `${FASHN_API_URL}/generate`);
       
-      const response = await fetch(`${FASHN_API_URL}/generations`, {
+      const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,9 +207,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
-          console.log('Checking status:', `${FASHN_API_URL}/generations/${data.task_id}`);
+          console.log('Checking status:', `${FASHN_API_URL}/status/${data.task_id}`);
           
-          const statusResponse = await fetch(`${FASHN_API_URL}/generations/${data.task_id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
