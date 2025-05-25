@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
+// API category mapping
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -167,7 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (insertError) throw insertError;
 
       // Call FashnAI API
-      const response = await fetch(`${FASHN_API_URL}/generate`, {
+      const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -188,7 +189,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const data = await response.json();
       console.log('FashnAI API response:', data);
 
-      if (!data.task_id) {
+      if (!data.id) {
         throw new Error('No task ID received from API');
       }
 
@@ -196,7 +197,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await supabase
         .from('generations')
         .update({ 
-          task_id: data.task_id,
+          task_id: data.id,
           status: 'processing'
         })
         .eq('id', generation.id);
@@ -206,7 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60; // 2 minutes maximum
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.task_id}`, {
+          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
@@ -219,22 +220,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const statusData = await statusResponse.json();
           console.log('Status check response:', statusData);
 
-          if (statusData.status === 'completed' && statusData.result_url) {
+          if (statusData.status === 'completed' && statusData.output?.[0]) {
             clearInterval(pollInterval);
             setGenerationStatus('completed');
             setGenerationProgress(100);
-            setResultImage(statusData.result_url);
+            setResultImage(statusData.output[0]);
             setIsGenerating(false);
 
             // Update generation record with result URL
-            await supabase
+            const { error: updateError } = await supabase
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.result_url,
+                result_image_url: statusData.output[0],
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
+
+            if (updateError) {
+              console.error('Error updating generation with result:', updateError);
+            }
 
             // Refresh user data to get updated credits
             await fetchUserData(user.id);
@@ -252,7 +257,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(2000); // Wait 2 seconds between checks
+          await delay(1000); // Wait 1 second between checks
 
         } catch (error) {
           clearInterval(pollInterval);
