@@ -167,6 +167,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
+      setGenerationStatus('processing');
+
       // Call FashnAI API
       const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
@@ -222,13 +224,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           if (statusData.status === 'completed' && statusData.output?.[0]) {
             clearInterval(pollInterval);
-            setGenerationStatus('completed');
-            setGenerationProgress(100);
             
             const resultUrl = statusData.output[0];
             setResultImage(resultUrl);
+            setGenerationStatus('completed');
+            setGenerationProgress(100);
 
-            // Update generation record with result URL
+            // First update the generation record
             const { error: updateError } = await supabase
               .from('generations')
               .update({
@@ -242,9 +244,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               console.error('Error updating generation with result:', updateError);
             }
 
+            // Then set isGenerating to false
             setIsGenerating(false);
 
-            // Refresh user data to get updated credits
+            // Finally refresh user data
             await fetchUserData(user.id);
 
           } else if (statusData.status === 'failed') {
@@ -260,7 +263,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(1000); // Wait 1 second between checks
+          await delay(2000); // Wait 2 seconds between checks
 
         } catch (error) {
           clearInterval(pollInterval);
