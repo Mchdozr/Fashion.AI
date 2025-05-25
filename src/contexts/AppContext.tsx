@@ -231,6 +231,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             // Refresh user data
             await fetchUserData(user.id);
+
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
             throw new Error('Generation failed');
