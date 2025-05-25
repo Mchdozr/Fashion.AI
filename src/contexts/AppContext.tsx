@@ -137,8 +137,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
-    setResultImage(null);
-    
+
     try {
       const modelImageUrl = await uploadImage(modelImage);
       const garmentImageUrl = await uploadImage(garmentImage);
@@ -148,25 +147,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Invalid category: ${category}`);
       }
 
-      // Create generation record
-      const { data: generation, error: insertError } = await supabase
-        .from('generations')
-        .insert({
-          user_id: user.id,
-          model_image_url: modelImageUrl,
-          garment_image_url: garmentImageUrl,
-          category: category,
-          performance_mode: performanceMode,
-          num_samples: numSamples,
-          seed: seed,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Call FashnAI API
+      // Call FashnAI API first
       const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
@@ -192,14 +173,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error('No task ID received from API');
       }
 
-      // Update generation with task ID
-      await supabase
+      // Create generation record after API call succeeds
+      const { data: generation, error: insertError } = await supabase
         .from('generations')
-        .update({ 
-          task_id: data.task_id,
-          status: 'processing'
+        .insert({
+          user_id: user.id,
+          model_image_url: modelImageUrl,
+          garment_image_url: garmentImageUrl,
+          category: category,
+          performance_mode: performanceMode,
+          num_samples: numSamples,
+          seed: seed,
+          status: 'processing',
+          task_id: data.task_id
         })
-        .eq('id', generation.id);
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
 
       // Start polling for status
       let attempts = 0;
@@ -221,12 +212,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           if (statusData.status === 'completed' && statusData.result_url) {
             clearInterval(pollInterval);
+            
+            // Update UI first
             setGenerationStatus('completed');
             setGenerationProgress(100);
             setResultImage(statusData.result_url);
             setIsGenerating(false);
 
-            // Update generation record with result URL
+            // Then update database
             await supabase
               .from('generations')
               .update({
@@ -236,9 +229,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               })
               .eq('id', generation.id);
 
-            // Refresh user data to get updated credits
+            // Refresh user data
             await fetchUserData(user.id);
-
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
             throw new Error('Generation failed');
@@ -250,9 +242,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Generation timed out');
           }
 
-          // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(2000); // Wait 2 seconds between checks
+          await delay(2000);
 
         } catch (error) {
           clearInterval(pollInterval);
