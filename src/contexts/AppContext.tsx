@@ -133,7 +133,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
     }
-    
+
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGenerationProgress(0);
