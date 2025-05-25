@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_KEY = 'fa-xRYYLHSww4h2-dZJDxv4U9QqXwMzSiaKbsbBG';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
