@@ -224,15 +224,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             clearInterval(pollInterval);
             setGenerationStatus('completed');
             setGenerationProgress(100);
-            setResultImage(statusData.output[0]);
-            setIsGenerating(false);
+            
+            const resultUrl = statusData.output[0];
+            setResultImage(resultUrl);
 
             // Update generation record with result URL
             const { error: updateError } = await supabase
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: statusData.output[0],
+                result_image_url: resultUrl,
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
@@ -240,6 +241,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (updateError) {
               console.error('Error updating generation with result:', updateError);
             }
+
+            setIsGenerating(false);
 
             // Refresh user data to get updated credits
             await fetchUserData(user.id);
