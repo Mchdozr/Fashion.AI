@@ -5,7 +5,6 @@ import type { Database } from '../lib/database.types';
 type Generation = Database['public']['Tables']['generations']['Row'];
 type User = Database['public']['Tables']['users']['Row'];
 
-// API category mapping
 const categoryMapping = {
   'top': 'tops',
   'bottom': 'bottoms',
@@ -36,7 +35,6 @@ interface AppContextType {
   setNumSamples: (num: number) => void;
   seed: number;
   setSeed: (seed: number) => void;
-  generateAIModel: () => void;
   startGeneration: () => Promise<void>;
   user: User | null;
   credits: number;
@@ -84,6 +82,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
+  // Auto-generate AI model when model image changes
+  useEffect(() => {
+    if (modelImage) {
+      setIsModelGenerating(true);
+      setIsModelReady(false);
+      
+      setTimeout(() => {
+        setIsModelGenerating(false);
+        setIsModelReady(true);
+        
+        // If garment image exists, start generation
+        if (garmentImage) {
+          startGeneration();
+        }
+      }, 3000);
+    }
+  }, [modelImage]);
+
   const fetchUserData = async (userId: string) => {
     const { data, error } = await supabase
       .from('users')
@@ -116,18 +132,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       .getPublicUrl(fileName);
 
     return publicUrl;
-  };
-
-  const generateAIModel = () => {
-    if (!modelImage) return;
-    
-    setIsModelGenerating(true);
-    setIsModelReady(false);
-    
-    setTimeout(() => {
-      setIsModelGenerating(false);
-      setIsModelReady(true);
-    }, 3000);
   };
 
   const startGeneration = async () => {
@@ -303,7 +307,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setNumSamples,
         seed,
         setSeed,
-        generateAIModel,
         startGeneration,
         user,
         credits
