@@ -1,17 +1,19 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../lib/database.types';
 import { delay } from '../utils/time';
 import { FASHN_API_URL, FASHN_API_KEY } from '../config/constants';
 import { uploadImage } from '../utils/storage';
 
-type AppContextType = {
+type User = Database['public']['Tables']['users']['Row'];
+
+interface AppContextType {
   user: User | null;
   credits: number;
   modelImage: string | null;
   garmentImage: string | null;
   resultImage: string | null;
-  category: string | null;
+  category: string;
   performanceMode: string;
   numSamples: number;
   seed: number;
@@ -22,13 +24,13 @@ type AppContextType = {
   generationProgress: number;
   setModelImage: (url: string | null) => void;
   setGarmentImage: (url: string | null) => void;
-  setCategory: (category: string | null) => void;
+  setCategory: (category: string) => void;
   setPerformanceMode: (mode: string) => void;
   setNumSamples: (num: number) => void;
   setSeed: (seed: number) => void;
   generateAIModel: () => Promise<void>;
   startGeneration: () => Promise<void>;
-};
+}
 
 const categoryMapping = {
   'top': 'upper_body',
@@ -44,7 +46,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [modelImage, setModelImage] = useState<string | null>(null);
   const [garmentImage, setGarmentImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
-  const [category, setCategory] = useState<string | null>(null);
+  const [category, setCategory] = useState('top');
   const [performanceMode, setPerformanceMode] = useState('balanced');
   const [numSamples, setNumSamples] = useState(1);
   const [seed, setSeed] = useState(42);
@@ -53,6 +55,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
   const [generationProgress, setGenerationProgress] = useState(0);
+
+  useEffect(() => {
+    // Mevcut oturumu kontrol et
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    // Auth durumu değişikliklerini dinle
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      } else {
+        setUser(null);
+        setCredits(0);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchUserData = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user data:', error);
+      return;
+    }
+
+    setUser(data);
+    setCredits(data.credits);
+  };
 
   const generateAIModel = async () => {
     if (!modelImage) return;
@@ -217,23 +258,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setGenerationStatus('failed');
       setIsGenerating(false);
       throw error;
-    }
-  };
-
-  const fetchUserData = async (userId: string) => {
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('credits')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user data:', error);
-      return;
-    }
-
-    if (userData) {
-      setCredits(userData.credits);
     }
   };
 
