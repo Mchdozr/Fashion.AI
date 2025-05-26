@@ -58,7 +58,9 @@ const GalleryView: React.FC = () => {
 
       if (error) throw error;
       
-      setGenerations(data || []);
+      // Filter out generations without result_image_url
+      const completedGenerations = data?.filter(gen => gen.result_image_url) || [];
+      setGenerations(completedGenerations);
     } catch (error) {
       console.error('Error fetching generations:', error);
     } finally {
@@ -167,7 +169,7 @@ const GalleryView: React.FC = () => {
       
       {generations.length === 0 ? (
         <div className="text-center text-gray-400 py-12">
-          <p>No generations yet. Start creating!</p>
+          <p>No completed generations yet. Start creating!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -177,38 +179,23 @@ const GalleryView: React.FC = () => {
               className="bg-[#222222] rounded-lg overflow-hidden border border-[#333333] group"
             >
               <div className="aspect-[3/4] relative group">
-                {generation.result_image_url ? (
-                  <img
-                    src={generation.result_image_url}
-                    alt="Generated result"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#1A1A1A]">
-                    <div className="text-center">
-                      <div className="text-gray-400 text-sm mb-2">
-                        {generation.status === 'pending' && 'Waiting to start...'}
-                        {generation.status === 'processing' && (
-                          <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F8D74B] mb-2"></div>
-                            <span>Processing...</span>
-                          </div>
-                        )}
-                        {generation.status === 'failed' && 'Generation failed'}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {generation.result_image_url && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                    <button
-                      onClick={() => handleDownload(generation.result_image_url!)}
-                      className="bg-[#F8D74B] text-black p-3 rounded-full hover:bg-[#f9df6e] transition-colors duration-150"
-                    >
-                      <Download size={20} />
-                    </button>
-                  </div>
-                )}
+                <img
+                  src={generation.result_image_url!}
+                  alt="Generated result"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load image:', generation.result_image_url);
+                    e.currentTarget.src = generation.garment_image_url;
+                  }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                  <button
+                    onClick={() => handleDownload(generation.result_image_url!)}
+                    className="bg-[#F8D74B] text-black p-3 rounded-full hover:bg-[#f9df6e] transition-colors duration-150"
+                  >
+                    <Download size={20} />
+                  </button>
+                </div>
                 <button className="absolute top-4 right-4 text-white hover:text-[#F8D74B] transition-colors duration-150">
                   <Heart size={24} />
                 </button>
