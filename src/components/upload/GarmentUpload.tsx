@@ -12,12 +12,13 @@ const GarmentUpload: React.FC = () => {
     setCategory, 
     modelImage, 
     isModelReady,
-    startGeneration 
+    startGeneration,
+    user 
   } = useAppContext();
 
   const handleImageChange = async (imageUrl: string) => {
     setGarmentImage(imageUrl);
-    if (modelImage && isModelReady && category) {
+    if (modelImage && isModelReady && category && user) {
       try {
         await startGeneration();
       } catch (error) {
@@ -28,7 +29,7 @@ const GarmentUpload: React.FC = () => {
 
   const handleCategoryChange = async (newCategory: string) => {
     setCategory(newCategory);
-    if (modelImage && garmentImage && isModelReady) {
+    if (modelImage && garmentImage && isModelReady && user) {
       try {
         await startGeneration();
       } catch (error) {
