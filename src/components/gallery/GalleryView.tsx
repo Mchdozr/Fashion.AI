@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/database.types';
-import { Download, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { Download, Heart, Calendar, Clock, RefreshCw, Filter } from 'lucide-react';
 
 type Generation = Database['public']['Tables']['generations']['Row'];
 
@@ -9,6 +9,10 @@ const GalleryView: React.FC = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [showLiked, setShowLiked] = useState(false);
+  const [showImages, setShowImages] = useState(true);
+  const [showVideos, setShowVideos] = useState(true);
 
   useEffect(() => {
     fetchGenerations();
@@ -31,14 +35,26 @@ const GalleryView: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refreshKey]);
+  }, [refreshKey, selectedDate, showLiked]);
 
   const fetchGenerations = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('generations')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (selectedDate) {
+        const startDate = new Date(selectedDate);
+        const endDate = new Date(selectedDate);
+        endDate.setDate(endDate.getDate() + 1);
+        
+        query = query
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString());
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -98,14 +114,55 @@ const GalleryView: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">My Gallery</h2>
-        <button
-          onClick={handleRefresh}
-          className="p-2 rounded-full hover:bg-[#333333] transition-colors duration-150"
-          title="Refresh gallery"
-        >
-          <RefreshCw size={20} className="text-gray-400" />
-        </button>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold">My Gallery</h2>
+          <button
+            onClick={() => setSelectedDate('')}
+            className="text-sm text-gray-400 hover:text-white transition-colors duration-150"
+          >
+            Select
+          </button>
+        </div>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Filter size={20} className="text-gray-400" />
+            <span className="text-sm text-gray-400">Filters:</span>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={showImages}
+                onChange={(e) => setShowImages(e.target.checked)}
+                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
+              />
+              <span className="text-sm text-gray-300">Images</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={showVideos}
+                onChange={(e) => setShowVideos(e.target.checked)}
+                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
+              />
+              <span className="text-sm text-gray-300">Videos</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={showLiked}
+                onChange={(e) => setShowLiked(e.target.checked)}
+                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
+              />
+              <span className="text-sm text-gray-300">Liked</span>
+            </label>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="p-2 rounded-full hover:bg-[#333333] transition-colors duration-150"
+            title="Refresh gallery"
+          >
+            <RefreshCw size={20} className="text-gray-400" />
+          </button>
+        </div>
       </div>
       
       {generations.length === 0 ? (
@@ -152,6 +209,9 @@ const GalleryView: React.FC = () => {
                     </button>
                   </div>
                 )}
+                <button className="absolute top-4 right-4 text-white hover:text-[#F8D74B] transition-colors duration-150">
+                  <Heart size={24} />
+                </button>
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
