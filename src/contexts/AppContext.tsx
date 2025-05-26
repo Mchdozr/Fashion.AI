@@ -149,7 +149,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Invalid category: ${category}`);
       }
 
-      // Create generation record
+      // Create generation record first
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
@@ -166,8 +166,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .single();
 
       if (insertError) throw insertError;
-
-      setGenerationStatus('processing');
 
       // Call FashnAI API
       const response = await fetch(`${FASHN_API_URL}/run`, {
@@ -189,13 +187,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const data = await response.json();
-      console.log('FashnAI API response:', data);
-
+      
       if (!data.id) {
         throw new Error('No task ID received from API');
       }
 
-      // Update generation with task ID
+      // Update generation with task ID and set status to processing
       await supabase
         .from('generations')
         .update({ 
@@ -203,6 +200,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           status: 'processing'
         })
         .eq('id', generation.id);
+
+      setGenerationStatus('processing');
 
       // Start polling for status
       let attempts = 0;
@@ -220,7 +219,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
 
           const statusData = await statusResponse.json();
-          console.log('Status check response:', statusData);
 
           if (statusData.status === 'completed' && statusData.output?.[0]) {
             clearInterval(pollInterval);
@@ -230,8 +228,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setGenerationStatus('completed');
             setGenerationProgress(100);
 
-            // First update the generation record
-            const { error: updateError } = await supabase
+            // Update generation with result URL and completed status
+            await supabase
               .from('generations')
               .update({
                 status: 'completed',
@@ -240,14 +238,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               })
               .eq('id', generation.id);
 
-            if (updateError) {
-              console.error('Error updating generation with result:', updateError);
-            }
-
-            // Then set isGenerating to false
             setIsGenerating(false);
-
-            // Finally refresh user data
             await fetchUserData(user.id);
 
           } else if (statusData.status === 'failed') {
@@ -261,15 +252,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Generation timed out');
           }
 
-          // Calculate progress based on attempts
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
-          await delay(2000); // Wait 2 seconds between checks
+          await delay(2000);
 
         } catch (error) {
           clearInterval(pollInterval);
+          console.error('Status check error:', error);
+          
+          // Update generation status to failed
+          await supabase
+            .from('generations')
+            .update({
+              status: 'failed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', generation.id);
+
           setGenerationStatus('failed');
           setIsGenerating(false);
-          console.error('Status check error:', error);
           throw error;
         }
       }, 2000);

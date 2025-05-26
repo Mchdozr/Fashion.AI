@@ -17,16 +17,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { task_id, status, result_url } = await req.json();
+    const { task_id, status, output } = await req.json();
 
     if (!task_id) {
       throw new Error('Task ID is required');
     }
 
-    const updateData = {
-      status,
-      ...(result_url && { result_image_url: result_url })
-    };
+    const updateData: any = { status };
+    
+    if (status === 'completed' && output?.[0]) {
+      updateData.result_image_url = output[0];
+      updateData.updated_at = new Date().toISOString();
+    }
 
     const { error: updateError } = await supabase
       .from('generations')
