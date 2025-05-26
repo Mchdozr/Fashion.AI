@@ -10,20 +10,21 @@ const StudioView: React.FC = () => {
 
   return (
     <main className="p-6 min-h-[calc(100vh-4rem)]">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        <div className="aspect-[3/4] lg:aspect-auto lg:min-h-[600px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="aspect-[3/4] lg:aspect-auto lg:h-[600px]">
           <ModelUpload />
         </div>
-        <div className="aspect-[3/4] lg:aspect-auto lg:min-h-[600px]">
+        <div className="aspect-[3/4] lg:aspect-auto lg:h-[600px]">
           <GarmentUpload />
         </div>
-        <div className="flex flex-col lg:min-h-[600px]">
-          <div className="flex-1">
-            <ResultPreview />
-          </div>
-          <div className="mt-4">
-            <GenerationSettings />
-          </div>
+        <div className="aspect-[3/4] lg:aspect-auto lg:h-[600px]">
+          <ResultPreview />
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="max-w-md mx-auto">
+          <GenerationSettings />
           
           {isGenerating && (
             <div className="bg-[#222222] p-4 rounded-lg border border-[#333333] mt-4">
