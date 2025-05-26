@@ -76,3 +76,5 @@ const GarmentUpload: React.FC = () => {
     </div>
   );
 };
+
+export default GarmentUpload
