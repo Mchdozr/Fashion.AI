@@ -1,20 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/database.types';
-import { Download, Heart, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { Download, Calendar, Clock } from 'lucide-react';
 
 type Generation = Database['public']['Tables']['generations']['Row'];
 
 const GalleryView: React.FC = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'liked'>('all');
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchGenerations();
     
-    // Set up real-time subscription for all generation changes
     const channel = supabase
       .channel('generations_channel')
       .on(
@@ -33,7 +30,7 @@ const GalleryView: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refreshKey]);
+  }, []);
 
   const fetchGenerations = async () => {
     try {
@@ -71,11 +68,6 @@ const GalleryView: React.FC = () => {
     }
   };
 
-  const handleRefresh = () => {
-    setLoading(true);
-    setRefreshKey(prev => prev + 1);
-  };
-
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -101,38 +93,7 @@ const GalleryView: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">My Gallery</h2>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleRefresh}
-            className="p-2 rounded-full hover:bg-[#333333] transition-colors duration-150"
-            title="Refresh gallery"
-          >
-            <RefreshCw size={20} className="text-gray-400" />
-          </button>
-          <button
-            onClick={() => setSelectedFilter('all')}
-            className={`px-4 py-2 rounded-md transition-colors duration-150 ${
-              selectedFilter === 'all'
-                ? 'bg-[#F8D74B] text-black'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#444444]'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setSelectedFilter('liked')}
-            className={`px-4 py-2 rounded-md transition-colors duration-150 ${
-              selectedFilter === 'liked'
-                ? 'bg-[#F8D74B] text-black'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#444444]'
-            }`}
-          >
-            Liked
-          </button>
-        </div>
-      </div>
+      <h2 className="text-2xl font-bold mb-6">My Gallery</h2>
       
       {generations.length === 0 ? (
         <div className="text-center text-gray-400 py-12">
@@ -163,9 +124,6 @@ const GalleryView: React.FC = () => {
                     <Download size={20} />
                   </button>
                 </div>
-                <button className="absolute top-4 right-4 text-white hover:text-[#F8D74B] transition-colors duration-150">
-                  <Heart size={24} />
-                </button>
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-2">
