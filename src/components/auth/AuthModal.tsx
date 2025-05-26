@@ -23,30 +23,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         });
+
         if (error) {
           if (error.message === 'User already registered') {
-            setError('This email is already registered. Please sign in instead.');
+            setError('Bu email zaten kayıtlı. Lütfen giriş yapın.');
             setIsSignUp(false);
-            setLoading(false);
-            return;
+          } else {
+            throw error;
           }
-          throw error;
+        } else if (data.user) {
+          onClose();
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password,
+          password
         });
-        if (error) throw error;
-      }
 
-      onClose();
+        if (error) {
+          if (error.message === 'Invalid login credentials') {
+            setError('Email veya şifre hatalı');
+          } else {
+            throw error;
+          }
+        } else if (data.user) {
+          onClose();
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -63,7 +75,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         </button>
 
         <h2 className="text-xl font-bold mb-6">
-          {isSignUp ? 'Create an account' : 'Sign in to your account'}
+          {isSignUp ? 'Hesap Oluştur' : 'Giriş Yap'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,7 +95,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
-              Password
+              Şifre
             </label>
             <input
               type="password"
@@ -104,30 +116,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             disabled={loading}
             className="w-full bg-[#F8D74B] hover:bg-[#f9df6e] text-black font-medium py-2 rounded-md transition-colors duration-150 disabled:bg-gray-600 disabled:text-gray-400"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign up' : 'Sign in'}
+            {loading ? 'Yükleniyor...' : isSignUp ? 'Kayıt Ol' : 'Giriş Yap'}
           </button>
 
           <div className="text-center text-sm text-gray-400">
             {isSignUp ? (
               <>
-                Already have an account?{' '}
+                Zaten hesabınız var mı?{' '}
                 <button
                   type="button"
                   onClick={() => setIsSignUp(false)}
                   className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
                 >
-                  Sign in
+                  Giriş Yap
                 </button>
               </>
             ) : (
               <>
-                Don't have an account?{' '}
+                Hesabınız yok mu?{' '}
                 <button
                   type="button"
                   onClick={() => setIsSignUp(true)}
                   className="text-[#F8D74B] hover:text-[#f9df6e] transition-colors duration-150"
                 >
-                  Sign up
+                  Kayıt Ol
                 </button>
               </>
             )}
