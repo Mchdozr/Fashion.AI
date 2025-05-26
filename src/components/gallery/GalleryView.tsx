@@ -1,22 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { Database } from '../../lib/database.types';
-import { Download, Heart, Calendar, Clock, RefreshCw, Filter } from 'lucide-react';
+import { Download, Heart, Calendar, Clock, RefreshCw } from 'lucide-react';
 
 type Generation = Database['public']['Tables']['generations']['Row'];
 
 const GalleryView: React.FC = () => {
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'liked'>('all');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [showLiked, setShowLiked] = useState(false);
-  const [showImages, setShowImages] = useState(true);
-  const [showVideos, setShowVideos] = useState(true);
 
   useEffect(() => {
     fetchGenerations();
     
+    // Set up real-time subscription for all generation changes
     const channel = supabase
       .channel('generations_channel')
       .on(
@@ -35,32 +33,20 @@ const GalleryView: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refreshKey, selectedDate, showLiked]);
+  }, [refreshKey]);
 
   const fetchGenerations = async () => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('generations')
         .select('*')
+        .eq('status', 'completed')
+        .not('result_image_url', 'is', null)
         .order('created_at', { ascending: false });
-
-      if (selectedDate) {
-        const startDate = new Date(selectedDate);
-        const endDate = new Date(selectedDate);
-        endDate.setDate(endDate.getDate() + 1);
-        
-        query = query
-          .gte('created_at', startDate.toISOString())
-          .lt('created_at', endDate.toISOString());
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       
-      // Filter out generations without result_image_url
-      const completedGenerations = data?.filter(gen => gen.result_image_url) || [];
-      setGenerations(completedGenerations);
+      setGenerations(data || []);
     } catch (error) {
       console.error('Error fetching generations:', error);
     } finally {
@@ -116,53 +102,34 @@ const GalleryView: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">My Gallery</h2>
         <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-bold">My Gallery</h2>
-          <button
-            onClick={() => setSelectedDate('')}
-            className="text-sm text-gray-400 hover:text-white transition-colors duration-150"
-          >
-            Select
-          </button>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Filter size={20} className="text-gray-400" />
-            <span className="text-sm text-gray-400">Filters:</span>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={showImages}
-                onChange={(e) => setShowImages(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
-              />
-              <span className="text-sm text-gray-300">Images</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={showVideos}
-                onChange={(e) => setShowVideos(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
-              />
-              <span className="text-sm text-gray-300">Videos</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={showLiked}
-                onChange={(e) => setShowLiked(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-[#F8D74B] rounded border-gray-400"
-              />
-              <span className="text-sm text-gray-300">Liked</span>
-            </label>
-          </div>
           <button
             onClick={handleRefresh}
             className="p-2 rounded-full hover:bg-[#333333] transition-colors duration-150"
             title="Refresh gallery"
           >
             <RefreshCw size={20} className="text-gray-400" />
+          </button>
+          <button
+            onClick={() => setSelectedFilter('all')}
+            className={`px-4 py-2 rounded-md transition-colors duration-150 ${
+              selectedFilter === 'all'
+                ? 'bg-[#F8D74B] text-black'
+                : 'bg-[#333333] text-gray-300 hover:bg-[#444444]'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setSelectedFilter('liked')}
+            className={`px-4 py-2 rounded-md transition-colors duration-150 ${
+              selectedFilter === 'liked'
+                ? 'bg-[#F8D74B] text-black'
+                : 'bg-[#333333] text-gray-300 hover:bg-[#444444]'
+            }`}
+          >
+            Liked
           </button>
         </div>
       </div>
@@ -184,7 +151,7 @@ const GalleryView: React.FC = () => {
                   alt="Generated result"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    console.error('Failed to load image:', generation.result_image_url);
+                    console.error('Failed to load result image:', generation.result_image_url);
                     e.currentTarget.src = generation.garment_image_url;
                   }}
                 />
