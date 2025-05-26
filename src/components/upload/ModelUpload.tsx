@@ -42,3 +42,5 @@ const ModelUpload: React.FC = () => {
     </div>
   );
 };
+
+export default ModelUpload
