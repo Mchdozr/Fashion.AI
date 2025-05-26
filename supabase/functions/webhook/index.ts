@@ -23,13 +23,11 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
-    const updateData: any = { 
-      status,
-      updated_at: new Date().toISOString()
-    };
+    const updateData: any = { status };
     
     if (status === 'completed' && output?.[0]) {
       updateData.result_image_url = output[0];
+      updateData.updated_at = new Date().toISOString();
     }
 
     const { error: updateError } = await supabase
@@ -38,6 +36,7 @@ Deno.serve(async (req) => {
       .eq('task_id', task_id);
 
     if (updateError) {
+      console.error('Webhook update error:', updateError);
       throw updateError;
     }
 
@@ -51,6 +50,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
