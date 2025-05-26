@@ -4,14 +4,14 @@ import ImageDropzone from '../ui/ImageDropzone';
 import { useAppContext } from '../../contexts/AppContext';
 
 const ModelUpload: React.FC = () => {
-  const { modelImage, setModelImage, isModelGenerating, garmentImage } = useAppContext();
+  const { modelImage, setModelImage, isModelGenerating } = useAppContext();
 
   const handleImageChange = (imageUrl: string) => {
     setModelImage(imageUrl);
   };
 
   return (
-    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
+    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <h2 className="text-lg font-medium">Select Model</h2>
@@ -25,11 +25,13 @@ const ModelUpload: React.FC = () => {
       </div>
       
       <div className="flex-1 flex flex-col">
-        <ImageDropzone 
-          image={modelImage} 
-          onImageChange={handleImageChange} 
-          className="flex-1"
-        />
+        <div className="flex-1 relative">
+          <ImageDropzone 
+            image={modelImage} 
+            onImageChange={handleImageChange} 
+            className="absolute inset-0"
+          />
+        </div>
         
         {isModelGenerating && (
           <div className="mt-4 text-center text-sm text-gray-400">
@@ -40,5 +42,3 @@ const ModelUpload: React.FC = () => {
     </div>
   );
 };
-
-export default ModelUpload

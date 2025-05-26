@@ -32,7 +32,7 @@ const ResultPreview: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
+    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <h2 className="text-lg font-medium">Result</h2>
@@ -46,27 +46,29 @@ const ResultPreview: React.FC = () => {
       </div>
       
       <div className="flex-1 flex flex-col">
-        <div className="flex-1 mb-4 bg-[#1A1A1A] border border-[#333333] rounded-lg flex items-center justify-center overflow-hidden">
-          {resultImage ? (
-            <img 
-              src={resultImage} 
-              alt="Generated result" 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                console.error('Failed to load result image:', e);
-                e.currentTarget.src = garmentImage || '';
-              }}
-            />
-          ) : (
-            <div className="text-center p-4">
-              <div className="text-gray-400 text-sm mb-2">{getStatusMessage()}</div>
-              {generationStatus === 'processing' && (
-                <div className="w-24 h-24 mx-auto">
-                  <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-[#F8D74B]"></div>
-                </div>
-              )}
-            </div>
-          )}
+        <div className="flex-1 relative mb-4">
+          <div className="absolute inset-0 bg-[#1A1A1A] border border-[#333333] rounded-lg flex items-center justify-center overflow-hidden">
+            {resultImage ? (
+              <img 
+                src={resultImage} 
+                alt="Generated result" 
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  console.error('Failed to load result image:', e);
+                  e.currentTarget.src = garmentImage || '';
+                }}
+              />
+            ) : (
+              <div className="text-center p-4">
+                <div className="text-gray-400 text-sm mb-2">{getStatusMessage()}</div>
+                {generationStatus === 'processing' && (
+                  <div className="w-24 h-24 mx-auto">
+                    <div className="animate-spin rounded-full h-24 w-24 border-b-2 border-[#F8D74B]"></div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         <button
@@ -97,5 +99,3 @@ const ResultPreview: React.FC = () => {
     </div>
   );
 };
-
-export default ResultPreview;

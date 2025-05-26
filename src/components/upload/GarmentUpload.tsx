@@ -38,7 +38,7 @@ const GarmentUpload: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 flex flex-col h-full">
+    <div className="bg-[#222222] rounded-lg border border-[#333333] p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <h2 className="text-lg font-medium">Select Garment</h2>
@@ -52,13 +52,15 @@ const GarmentUpload: React.FC = () => {
       </div>
       
       <div className="flex-1 flex flex-col">
-        <ImageDropzone 
-          image={garmentImage} 
-          onImageChange={handleImageChange} 
-          className="flex-1 mb-4"
-        />
+        <div className="flex-1 relative mb-4">
+          <ImageDropzone 
+            image={garmentImage} 
+            onImageChange={handleImageChange} 
+            className="absolute inset-0"
+          />
+        </div>
         
-        <div className="mb-4">
+        <div>
           <div className="text-sm text-gray-400 mb-2">Category</div>
           <CategorySelector 
             selectedCategory={category}
@@ -74,5 +76,3 @@ const GarmentUpload: React.FC = () => {
     </div>
   );
 };
-
-export default GarmentUpload;

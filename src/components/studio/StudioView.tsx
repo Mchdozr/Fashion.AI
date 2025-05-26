@@ -9,15 +9,15 @@ const StudioView: React.FC = () => {
   const { isGenerating, generationProgress } = useAppContext();
 
   return (
-    <main className="p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="h-[600px]">
+    <main className="p-6 min-h-[calc(100vh-4rem)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        <div className="aspect-[3/4] lg:aspect-auto lg:min-h-[600px]">
           <ModelUpload />
         </div>
-        <div className="h-[600px]">
+        <div className="aspect-[3/4] lg:aspect-auto lg:min-h-[600px]">
           <GarmentUpload />
         </div>
-        <div className="h-[600px] flex flex-col">
+        <div className="flex flex-col lg:min-h-[600px]">
           <div className="flex-1">
             <ResultPreview />
           </div>
