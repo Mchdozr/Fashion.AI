@@ -113,6 +113,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
     }
+
+    if (!FASHN_API_KEY) {
+      throw new Error('API key is not configured');
+    }
     
     setIsGenerating(true);
     setGenerationStatus('pending');
@@ -146,7 +150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API
+      // Call FashnAI API with proper authorization
       const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
         headers: {
@@ -182,7 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       setGenerationStatus('processing');
 
-      // Start polling for status
+      // Start polling for status with proper authorization
       let attempts = 0;
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
