@@ -11,7 +11,13 @@ const Header: React.FC = () => {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore the error since we're signing out anyway
+      // The AppContext will handle the auth state update
+      console.debug('Sign out error:', error);
+    }
   };
 
   return (
