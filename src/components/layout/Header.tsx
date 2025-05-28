@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlayCircle, UserCircle2, CreditCard } from 'lucide-react';
+import { UserCircle, CreditCard } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
@@ -14,8 +14,6 @@ const Header: React.FC = () => {
     try {
       await supabase.auth.signOut();
     } catch (error) {
-      // Ignore the error since we're signing out anyway
-      // The AppContext will handle the auth state update
       console.debug('Sign out error:', error);
     }
   };
@@ -46,16 +44,11 @@ const Header: React.FC = () => {
               <span className="text-sm">Buy Credits</span>
             </button>
             
-            <a href="#" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-150">
-              <PlayCircle size={18} />
-              <span>Watch 2-Minute Tutorial</span>
-            </a>
-            
             <button 
               onClick={handleSignOut}
-              className="text-white hover:text-gray-300 transition-colors duration-150"
+              className="text-gray-400 hover:text-gray-300 transition-colors duration-150"
             >
-              <UserCircle2 size={28} />
+              <UserCircle size={24} strokeWidth={1.5} />
             </button>
           </>
         ) : (
