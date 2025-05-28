@@ -35,11 +35,15 @@ const DeletedView: React.FC = () => {
     try {
       const { error } = await supabase
         .from('generations')
-        .update({ deleted_at: null })
+        .update({ 
+          deleted_at: null,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', generation.id);
 
       if (error) throw error;
       
+      // Remove from local state immediately
       setDeletedItems(deletedItems.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error restoring item:', error);
@@ -55,6 +59,7 @@ const DeletedView: React.FC = () => {
 
       if (error) throw error;
       
+      // Remove from local state immediately
       setDeletedItems(deletedItems.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error permanently deleting item:', error);

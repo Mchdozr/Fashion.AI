@@ -14,25 +14,6 @@ const GalleryView: React.FC = () => {
 
   useEffect(() => {
     fetchGenerations();
-    
-    const channel = supabase
-      .channel('generations_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'generations'
-        },
-        () => {
-          fetchGenerations();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [filter]);
 
   const fetchGenerations = async () => {
@@ -79,10 +60,12 @@ const GalleryView: React.FC = () => {
 
   const toggleFavorite = async (generation: Generation) => {
     try {
+      const newFavoriteState = !generation.is_favorite;
+      
       const { error } = await supabase
         .from('generations')
         .update({ 
-          is_favorite: !generation.is_favorite,
+          is_favorite: newFavoriteState,
           updated_at: new Date().toISOString()
         })
         .eq('id', generation.id);
@@ -93,14 +76,16 @@ const GalleryView: React.FC = () => {
       setGenerations(prevGenerations => 
         prevGenerations.map(g => 
           g.id === generation.id 
-            ? { ...g, is_favorite: !g.is_favorite }
+            ? { ...g, is_favorite: newFavoriteState }
             : g
         )
       );
 
-      // Refetch if we're on favorites filter and unfavoriting
-      if (filter === 'favorites' && generation.is_favorite) {
-        fetchGenerations();
+      // If we're in favorites view and unfavoriting, remove the item
+      if (filter === 'favorites' && !newFavoriteState) {
+        setGenerations(prevGenerations => 
+          prevGenerations.filter(g => g.id !== generation.id)
+        );
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -109,17 +94,19 @@ const GalleryView: React.FC = () => {
 
   const handleDelete = async (generation: Generation) => {
     try {
+      const deletedAt = new Date().toISOString();
+      
       const { error } = await supabase
         .from('generations')
         .update({ 
-          deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          deleted_at: deletedAt,
+          updated_at: deletedAt
         })
         .eq('id', generation.id);
 
       if (error) throw error;
 
-      // Remove from local state
+      // Remove from local state immediately
       setGenerations(prevGenerations => 
         prevGenerations.filter(g => g.id !== generation.id)
       );
