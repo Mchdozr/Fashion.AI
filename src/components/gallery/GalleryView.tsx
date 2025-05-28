@@ -14,6 +14,26 @@ const GalleryView: React.FC = () => {
 
   useEffect(() => {
     fetchGenerations();
+    
+    const channel = supabase
+      .channel('gallery_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'generations',
+          filter: 'deleted_at.is.null'
+        },
+        () => {
+          fetchGenerations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [filter]);
 
   const fetchGenerations = async () => {

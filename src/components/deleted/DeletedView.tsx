@@ -11,6 +11,26 @@ const DeletedView: React.FC = () => {
 
   useEffect(() => {
     fetchDeletedItems();
+    
+    const channel = supabase
+      .channel('deleted_items_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'generations',
+          filter: 'deleted_at.is.not.null'
+        },
+        () => {
+          fetchDeletedItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchDeletedItems = async () => {
