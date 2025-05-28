@@ -6,7 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const FASHN_API_KEY = 'fa-ECXn1FiBkfBn-rI4qb4wTKU60b1fSLJtzvClq';
+const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
+const FASHN_API_URL = 'https://api.fashn.ai/v1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
       throw new Error('Task ID is required');
     }
 
-    const response = await fetch(`https://api.fashn.ai/v1/status/${taskId}`, {
+    const response = await fetch(`${FASHN_API_URL}/status/${taskId}`, {
       headers: {
         'Authorization': `Bearer ${FASHN_API_KEY}`,
       },
@@ -50,19 +51,18 @@ Deno.serve(async (req) => {
 
     const data = await response.json();
     
-    // Map API status to our status
     let status = data.status;
     let resultUrl = null;
 
-    if (status === 'completed' && data.result_url) {
-      resultUrl = data.result_url;
+    if (status === 'completed' && data.output?.[0]) {
+      resultUrl = data.output[0];
       
-      // Update the generation record
       const { error: updateError } = await supabase
         .from('generations')
         .update({
           status: status,
-          result_image_url: resultUrl
+          result_image_url: resultUrl,
+          updated_at: new Date().toISOString()
         })
         .eq('task_id', taskId);
 
