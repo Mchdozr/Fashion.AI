@@ -46,6 +46,9 @@ export interface Database {
           created_at: string
           status: 'pending' | 'processing' | 'completed' | 'failed'
           task_id: string | null
+          updated_at: string
+          is_favorite: boolean
+          deleted_at: string | null
         }
         Insert: {
           id?: string
@@ -60,6 +63,9 @@ export interface Database {
           created_at?: string
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           task_id?: string | null
+          updated_at?: string
+          is_favorite?: boolean
+          deleted_at?: string | null
         }
         Update: {
           id?: string
@@ -74,6 +80,9 @@ export interface Database {
           created_at?: string
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           task_id?: string | null
+          updated_at?: string
+          is_favorite?: boolean
+          deleted_at?: string | null
         }
       }
     }
