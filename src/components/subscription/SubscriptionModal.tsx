@@ -20,9 +20,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
           <X size={20} />
         </button>
 
-        <h2 className="text-2xl font-bold mb-8 text-center">Choose your plan</h2>
+        <h2 className="text-2xl font-bold mb-8 text-center">Buy Credits</h2>
 
-        <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
         <stripe-pricing-table 
           pricing-table-id="prctbl_1RTjzKRw2wcN9WgBERB22XA8"
           publishable-key="pk_test_51RTjrIRw2wcN9WgBL1XSTpPdn7dvVom0H3tXGDgaQBUYXJIoZkLGZYslHydnvxGgAmiOaPh2mOQKfI8FhawbFXc800BRlNoqAW">

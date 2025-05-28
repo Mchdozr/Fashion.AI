@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlayCircle, UserCircle2 } from 'lucide-react';
+import { PlayCircle, UserCircle2, CreditCard } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
@@ -36,7 +36,8 @@ const Header: React.FC = () => {
               onClick={() => setIsSubscriptionModalOpen(true)}
               className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150"
             >
-              <span className="text-sm">Subscribe to a Plan</span>
+              <CreditCard size={18} />
+              <span className="text-sm">Buy Credits</span>
             </button>
             
             <a href="#" className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-150">
