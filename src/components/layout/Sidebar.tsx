@@ -2,19 +2,15 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Laptop,
-  Users,
   Image as ImageIcon,
   FolderHeart,
-  Home
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   
   const menuItems = [
-    { icon: <Home size={20} />, label: 'Home', path: '/home' },
     { icon: <Laptop size={20} />, label: 'Studio', path: '/' },
-    { icon: <Users size={20} />, label: 'Models', path: '/models' },
     { icon: <FolderHeart size={20} />, label: 'My Gallery', path: '/gallery' },
   ];
 
