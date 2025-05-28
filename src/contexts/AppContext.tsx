@@ -40,6 +40,7 @@ interface AppContextType {
   startGeneration: () => Promise<void>;
   user: User | null;
   credits: number;
+  clearUserData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -63,19 +64,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<number>(0);
 
+  const clearUserData = () => {
+    setModelImage(null);
+    setGarmentImage(null);
+    setResultImage(null);
+    setCategory('top');
+    setIsModelGenerating(false);
+    setIsModelReady(false);
+    setIsGenerating(false);
+    setGenerationStatus('pending');
+    setGenerationProgress(0);
+    setPerformanceMode('balanced');
+    setNumSamples(1);
+    setSeed(Math.floor(Math.random() * 100000));
+    setUser(null);
+    setCredits(0);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchUserData(session.user.id);
+      } else {
+        clearUserData();
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        clearUserData(); // Clear data before fetching new user's data
         fetchUserData(session.user.id);
       } else {
-        setUser(null);
-        setCredits(0);
+        clearUserData();
       }
     });
 
@@ -92,10 +112,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setTimeout(() => {
         setIsModelGenerating(false);
         setIsModelReady(true);
-        
-        if (garmentImage) {
-          startGeneration();
-        }
       }, 3000);
     }
   }, [modelImage]);
@@ -335,7 +351,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSeed,
         startGeneration,
         user,
-        credits
+        credits,
+        clearUserData
       }}
     >
       {children}
