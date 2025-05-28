@@ -11,8 +11,9 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
+// Updated API URL to use the Supabase Edge Function endpoints
 const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
-const FASHN_API_URL = 'https://api.fashn.ai/api/v1';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -137,7 +138,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const makeApiRequest = async (url: string, options: RequestInit, retryCount = 0): Promise<Response> => {
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`
+        }
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: response.statusText }));
@@ -196,16 +203,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await makeApiRequest(`${FASHN_API_URL}/generations`, {
+      // Updated to use Supabase Edge Function
+      const response = await makeApiRequest(`${SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${FASHN_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model_image: modelImageUrl,
           garment_image: garmentImageUrl,
-          category: apiCategory
+          category: apiCategory,
+          api_key: FASHN_API_KEY
         })
       });
 
@@ -229,10 +237,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await makeApiRequest(`${FASHN_API_URL}/generations/${data.id}`, {
+          // Updated to use Supabase Edge Function
+          const statusResponse = await makeApiRequest(`${SUPABASE_URL}/functions/v1/check-status`, {
+            method: 'POST',
             headers: {
-              'Authorization': `Bearer ${FASHN_API_KEY}`
-            }
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              task_id: data.id,
+              api_key: FASHN_API_KEY
+            })
           });
 
           const statusData = await statusResponse.json();
