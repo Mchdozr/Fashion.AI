@@ -12,30 +12,15 @@ const GarmentUpload: React.FC = () => {
     setCategory, 
     modelImage, 
     isModelReady,
-    startGeneration,
     user 
   } = useAppContext();
 
-  const handleImageChange = async (imageUrl: string) => {
+  const handleImageChange = (imageUrl: string) => {
     setGarmentImage(imageUrl);
-    if (modelImage && isModelReady && category && user) {
-      try {
-        await startGeneration();
-      } catch (error) {
-        console.error('Auto-generation failed:', error);
-      }
-    }
   };
 
-  const handleCategoryChange = async (newCategory: string) => {
+  const handleCategoryChange = (newCategory: string) => {
     setCategory(newCategory);
-    if (modelImage && garmentImage && isModelReady && user) {
-      try {
-        await startGeneration();
-      } catch (error) {
-        console.error('Auto-generation failed:', error);
-      }
-    }
   };
 
   return (
@@ -78,4 +63,4 @@ const GarmentUpload: React.FC = () => {
   );
 };
 
-export default GarmentUpload
+export default GarmentUpload;
