@@ -11,7 +11,6 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
-// Updated API URL to use the Supabase Edge Function endpoints
 const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -138,11 +137,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const makeApiRequest = async (url: string, options: RequestInit, retryCount = 0): Promise<Response> => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(url, {
         ...options,
         headers: {
           ...options.headers,
-          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
       
@@ -203,30 +203,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Updated to use Supabase Edge Function
       const response = await makeApiRequest(`${SUPABASE_URL}/functions/v1/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model_image: modelImageUrl,
-          garment_image: garmentImageUrl,
-          category: apiCategory,
-          api_key: FASHN_API_KEY
+          modelImage: modelImageUrl,
+          garmentImage: garmentImageUrl,
+          category: apiCategory
         })
       });
 
       const data = await response.json();
       
-      if (!data.id) {
+      if (!data.taskId) {
         throw new Error('No task ID received from API');
       }
 
       await supabase
         .from('generations')
         .update({ 
-          task_id: data.id,
+          task_id: data.taskId,
           status: 'processing'
         })
         .eq('id', generation.id);
@@ -237,25 +235,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
-          // Updated to use Supabase Edge Function
-          const statusResponse = await makeApiRequest(`${SUPABASE_URL}/functions/v1/check-status`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              task_id: data.id,
-              api_key: FASHN_API_KEY
-            })
-          });
+          const statusResponse = await makeApiRequest(
+            `${SUPABASE_URL}/functions/v1/check-status?taskId=${data.taskId}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
+          );
 
           const statusData = await statusResponse.json();
 
-          if (statusData.status === 'completed' && statusData.output?.[0]) {
+          if (statusData.status === 'completed' && statusData.resultUrl) {
             clearInterval(pollInterval);
             
-            const resultUrl = statusData.output[0];
-            setResultImage(resultUrl);
+            setResultImage(statusData.resultUrl);
             setGenerationStatus('completed');
             setGenerationProgress(100);
 
@@ -263,7 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               .from('generations')
               .update({
                 status: 'completed',
-                result_image_url: resultUrl,
+                result_image_url: statusData.resultUrl,
                 updated_at: new Date().toISOString()
               })
               .eq('id', generation.id);
