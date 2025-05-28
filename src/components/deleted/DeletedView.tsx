@@ -22,8 +22,20 @@ const DeletedView: React.FC = () => {
           table: 'generations',
           filter: 'deleted_at.is.not.null'
         },
-        () => {
-          fetchDeletedItems();
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const updatedGeneration = payload.new as Generation;
+            if (updatedGeneration.deleted_at) {
+              // Add to deleted items if newly deleted
+              setDeletedItems(prev => [updatedGeneration, ...prev]);
+            } else {
+              // Remove from deleted items if restored
+              setDeletedItems(prev => prev.filter(item => item.id !== updatedGeneration.id));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            // Remove from deleted items if permanently deleted
+            setDeletedItems(prev => prev.filter(item => item.id !== payload.old.id));
+          }
         }
       )
       .subscribe();
@@ -53,18 +65,20 @@ const DeletedView: React.FC = () => {
 
   const handleRestore = async (generation: Generation) => {
     try {
+      const timestamp = new Date().toISOString();
+      
       const { error } = await supabase
         .from('generations')
         .update({ 
           deleted_at: null,
-          updated_at: new Date().toISOString()
+          updated_at: timestamp
         })
         .eq('id', generation.id);
 
       if (error) throw error;
       
       // Remove from local state immediately
-      setDeletedItems(deletedItems.filter(item => item.id !== generation.id));
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error restoring item:', error);
     }
@@ -80,7 +94,7 @@ const DeletedView: React.FC = () => {
       if (error) throw error;
       
       // Remove from local state immediately
-      setDeletedItems(deletedItems.filter(item => item.id !== generation.id));
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error permanently deleting item:', error);
     }
