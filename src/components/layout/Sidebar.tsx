@@ -4,6 +4,8 @@ import {
   Laptop,
   Image as ImageIcon,
   FolderHeart,
+  Trash2,
+  Info
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -12,6 +14,8 @@ const Sidebar: React.FC = () => {
   const menuItems = [
     { icon: <Laptop size={20} />, label: 'Studio', path: '/' },
     { icon: <FolderHeart size={20} />, label: 'My Gallery', path: '/gallery' },
+    { icon: <Trash2 size={20} />, label: 'Deleted Items', path: '/deleted' },
+    { icon: <Info size={20} />, label: 'About Us', path: '/about' },
   ];
 
   return (
