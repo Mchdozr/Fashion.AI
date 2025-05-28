@@ -9,7 +9,7 @@ const AboutView: React.FC = () => {
       description: 'Experience the future of fashion with our state-of-the-art AI technology that creates stunning virtual try-ons.'
     },
     {
-      icon: <Zap className="text-[#F8D74B]" size={32} />,
+      icon: <Zap className="text-[#F8D74B]\" size={32} />,
       title: 'Lightning Fast',
       description: 'Get results in seconds with our optimized processing pipeline and high-performance infrastructure.'
     },
@@ -19,9 +19,9 @@ const AboutView: React.FC = () => {
       description: 'Your data is protected with enterprise-grade security. We never share your images without permission.'
     },
     {
-      icon: <Users className="text-[#F8D74B]" size={32} />,
+      icon: <Users className="text-[#F8D74B]\" size={32} />,
       title: 'Built for Everyone',
-      description: 'Whether you're a fashion enthusiast or a business owner, our platform is designed to meet your needs.'
+      description: 'Whether you\'re a fashion enthusiast or a business owner, our platform is designed to meet your needs.'
     }
   ];
 
