@@ -11,7 +11,6 @@ const categoryMapping = {
   'full-body': 'one-pieces'
 } as const;
 
-const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -138,18 +137,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const makeApiRequest = async (url: string, options: RequestInit, retryCount = 0): Promise<Response> => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const response = await fetch(url, {
         ...options,
         headers: {
           ...options.headers,
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         }
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        const errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       return response;
@@ -211,14 +212,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify({
           modelImage: modelImageUrl,
           garmentImage: garmentImageUrl,
-          category: apiCategory
+          category: apiCategory,
+          generationId: generation.id
         })
       });
 
       const data = await response.json();
       
-      if (!data.taskId) {
-        throw new Error('No task ID received from API');
+      if (!data.success || !data.taskId) {
+        throw new Error(data.error || 'Failed to start generation');
       }
 
       await supabase
@@ -246,6 +248,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           );
 
           const statusData = await statusResponse.json();
+
+          if (!statusData.success) {
+            throw new Error(statusData.error || 'Status check failed');
+          }
 
           if (statusData.status === 'completed' && statusData.resultUrl) {
             clearInterval(pollInterval);
