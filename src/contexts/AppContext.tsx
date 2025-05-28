@@ -16,6 +16,9 @@ const FASHN_API_URL = 'https://api.fashn.ai/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
 interface AppContextType {
   modelImage: string | null;
   setModelImage: (url: string) => void;
@@ -132,9 +135,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return publicUrl;
   };
 
+  const makeApiRequest = async (url: string, options: RequestInit, retryCount = 0): Promise<Response> => {
+    try {
+      const response = await fetch(url, options);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        const errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+      
+      return response;
+    } catch (error) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return makeApiRequest(url, options, retryCount + 1);
+      }
+      throw error;
+    }
+  };
+
   const startGeneration = async () => {
     if (!modelImage || !garmentImage || !isModelReady || !category || !user) {
       throw new Error('Missing required data for generation');
+    }
+
+    if (credits <= 0) {
+      throw new Error('Insufficient credits for generation');
     }
     
     setIsGenerating(true);
@@ -168,7 +196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${FASHN_API_URL}/generate`, {
+      const response = await makeApiRequest(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,11 +208,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           category: apiCategory
         })
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `API request failed: ${response.statusText}`);
-      }
 
       const data = await response.json();
       
@@ -206,15 +229,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
+          const statusResponse = await makeApiRequest(`${FASHN_API_URL}/status/${data.id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
           });
-
-          if (!statusResponse.ok) {
-            throw new Error(`Status check failed: ${statusResponse.statusText}`);
-          }
 
           const statusData = await statusResponse.json();
 
@@ -240,13 +259,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
           } else if (statusData.status === 'failed') {
             clearInterval(pollInterval);
-            throw new Error('Generation failed');
+            throw new Error('Generation failed: ' + (statusData.error || 'Unknown error'));
           }
 
           attempts++;
           if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            throw new Error('Generation timed out');
+            throw new Error('Generation timed out after 2 minutes');
           }
 
           setGenerationProgress(Math.min(90, (attempts / maxAttempts) * 100));
