@@ -41,25 +41,31 @@ const LoginPage: React.FC = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               first_name: firstName,
               last_name: lastName,
-            }
+            },
+            emailRedirectTo: `${window.location.origin}/verify-email`
           }
         });
+        
         if (error) throw error;
+        
+        // Store email temporarily for verification
+        sessionStorage.setItem('verificationEmail', email);
+        navigate('/verify-email');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+        navigate('/');
       }
-      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -88,7 +94,7 @@ const LoginPage: React.FC = () => {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName\" className="block text-sm font-medium text-gray-300 mb-1">
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
                       First Name
                     </label>
                     <input

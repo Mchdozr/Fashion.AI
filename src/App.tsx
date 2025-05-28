@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/layout/Layout';
 import GalleryView from './components/gallery/GalleryView';
 import StudioView from './components/studio/StudioView';
-import HomeView from './components/home/HomeView';
 import LoginPage from './components/auth/LoginPage';
+import VerifyEmail from './components/auth/VerifyEmail';
 import { AppProvider } from './contexts/AppContext';
 import { useAppContext } from './contexts/AppContext';
 
@@ -20,17 +20,11 @@ function App() {
       <AppProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/" element={
             <ProtectedRoute>
               <Layout>
                 <StudioView />
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/home" element={
-            <ProtectedRoute>
-              <Layout>
-                <HomeView />
               </Layout>
             </ProtectedRoute>
           } />
