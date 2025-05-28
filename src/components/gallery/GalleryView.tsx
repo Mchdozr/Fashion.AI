@@ -97,6 +97,11 @@ const GalleryView: React.FC = () => {
             : g
         )
       );
+
+      // Refetch if we're on favorites filter and unfavoriting
+      if (filter === 'favorites' && generation.is_favorite) {
+        fetchGenerations();
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
