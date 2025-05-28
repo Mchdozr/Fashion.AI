@@ -12,7 +12,7 @@ const categoryMapping = {
 } as const;
 
 const FASHN_API_KEY = 'fa-e92wafgdYrE5-dRAWJrEPHSW7k4lLJ200CSpa';
-const FASHN_API_URL = 'https://api.fashn.ai/v1';
+const FASHN_API_URL = 'https://api.fashn.ai/api/v1';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -196,7 +196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await makeApiRequest(`${FASHN_API_URL}/generate`, {
+      const response = await makeApiRequest(`${FASHN_API_URL}/generations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
-          const statusResponse = await makeApiRequest(`${FASHN_API_URL}/status/${data.id}`, {
+          const statusResponse = await makeApiRequest(`${FASHN_API_URL}/generations/${data.id}`, {
             headers: {
               'Authorization': `Bearer ${FASHN_API_KEY}`
             }
