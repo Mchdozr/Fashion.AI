@@ -168,7 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      const response = await fetch(`${FASHN_API_URL}/run`, {
+      const response = await fetch(`${FASHN_API_URL}/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
