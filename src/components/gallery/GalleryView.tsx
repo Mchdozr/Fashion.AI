@@ -84,6 +84,23 @@ const GalleryView: React.FC = () => {
     }
   };
 
+  const handleDownload = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `generation-${new Date().getTime()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading image:', error);
+    }
+  };
+
   const toggleFavorite = async (generation: Generation) => {
     try {
       const timestamp = new Date().toISOString();
