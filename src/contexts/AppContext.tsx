@@ -226,7 +226,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setGenerationStatus('completed');
             setGenerationProgress(100);
 
-            // Supabase'e result_image_url'yi kaydet
             await supabase
               .from('generations')
               .update({
