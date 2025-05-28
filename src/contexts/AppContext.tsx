@@ -82,7 +82,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
-  // Auto-generate AI model when model image changes
   useEffect(() => {
     if (modelImage) {
       setIsModelGenerating(true);
@@ -92,7 +91,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsModelGenerating(false);
         setIsModelReady(true);
         
-        // If garment image exists, start generation
         if (garmentImage) {
           startGeneration();
         }
@@ -153,7 +151,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error(`Invalid category: ${category}`);
       }
 
-      // Create generation record first
       const { data: generation, error: insertError } = await supabase
         .from('generations')
         .insert({
@@ -171,7 +168,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (insertError) throw insertError;
 
-      // Call FashnAI API
       const response = await fetch(`${FASHN_API_URL}/run`, {
         method: 'POST',
         headers: {
@@ -196,7 +192,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         throw new Error('No task ID received from API');
       }
 
-      // Update generation with task ID and set status to processing
       await supabase
         .from('generations')
         .update({ 
@@ -207,9 +202,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setGenerationStatus('processing');
 
-      // Start polling for status
       let attempts = 0;
-      const maxAttempts = 60; // 2 minutes maximum
+      const maxAttempts = 60;
       const pollInterval = setInterval(async () => {
         try {
           const statusResponse = await fetch(`${FASHN_API_URL}/status/${data.id}`, {
@@ -232,7 +226,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setGenerationStatus('completed');
             setGenerationProgress(100);
 
-            // Update generation with result URL and completed status
+            // Supabase'e result_image_url'yi kaydet
             await supabase
               .from('generations')
               .update({
@@ -263,7 +257,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           clearInterval(pollInterval);
           console.error('Status check error:', error);
           
-          // Update generation status to failed
           await supabase
             .from('generations')
             .update({
