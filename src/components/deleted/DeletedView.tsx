@@ -11,33 +11,32 @@ const DeletedView: React.FC = () => {
 
   useEffect(() => {
     fetchDeletedItems();
-    
-    const channel = supabase
-      .channel('deleted_items_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'generations',
-          filter: 'deleted_at.is.not.null'
-        },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            const updatedGeneration = payload.new as Generation;
-            if (updatedGeneration.deleted_at) {
-              // Add to deleted items if newly deleted
-              setDeletedItems(prev => [updatedGeneration, ...prev]);
-            } else {
-              // Remove from deleted items if restored
-              setDeletedItems(prev => prev.filter(item => item.id !== updatedGeneration.id));
-            }
-          } else if (payload.eventType === 'DELETE') {
-            // Remove from deleted items if permanently deleted
-            setDeletedItems(prev => prev.filter(item => item.id !== payload.old.id));
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase.channel('deleted_realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'generations',
+        filter: 'deleted_at.is.not.null'
+      }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const updatedGeneration = payload.new as Generation;
+          if (updatedGeneration.deleted_at) {
+            setDeletedItems(prev => {
+              if (!prev.find(item => item.id === updatedGeneration.id)) {
+                return [updatedGeneration, ...prev];
+              }
+              return prev;
+            });
+          } else {
+            setDeletedItems(prev => prev.filter(item => item.id !== updatedGeneration.id));
           }
+        } else if (payload.eventType === 'DELETE') {
+          setDeletedItems(prev => prev.filter(item => item.id !== payload.old.id));
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -76,9 +75,6 @@ const DeletedView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
-      
-      // Remove from local state immediately
-      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error restoring item:', error);
     }
@@ -92,9 +88,6 @@ const DeletedView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
-      
-      // Remove from local state immediately
-      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error permanently deleting item:', error);
     }

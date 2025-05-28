@@ -14,35 +14,43 @@ const GalleryView: React.FC = () => {
 
   useEffect(() => {
     fetchGenerations();
-    
-    const channel = supabase
-      .channel('gallery_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'generations',
-          filter: 'deleted_at.is.null'
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && payload.new.deleted_at)) {
-            // Remove from local state if deleted
-            setGenerations(prev => prev.filter(g => g.id !== payload.old.id));
-          } else if (payload.eventType === 'UPDATE') {
-            // Update in local state
-            setGenerations(prev => 
-              prev.map(g => g.id === payload.new.id ? payload.new as Generation : g)
-            );
-          } else if (payload.eventType === 'INSERT') {
-            // Add to local state if matches current filter
-            const newGeneration = payload.new as Generation;
-            if (filter === 'all' || (filter === 'favorites' && newGeneration.is_favorite)) {
-              setGenerations(prev => [...prev, newGeneration]);
-            }
+  }, [filter]);
+
+  useEffect(() => {
+    const channel = supabase.channel('gallery_realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'generations',
+        filter: `deleted_at.is.null${filter === 'favorites' ? ' AND is_favorite.eq.true' : ''}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newGeneration = payload.new as Generation;
+          if (!newGeneration.deleted_at && (filter === 'all' || (filter === 'favorites' && newGeneration.is_favorite))) {
+            setGenerations(prev => [newGeneration, ...prev]);
           }
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedGeneration = payload.new as Generation;
+          if (updatedGeneration.deleted_at) {
+            setGenerations(prev => prev.filter(g => g.id !== updatedGeneration.id));
+          } else if (filter === 'favorites') {
+            if (updatedGeneration.is_favorite) {
+              setGenerations(prev => {
+                if (!prev.find(g => g.id === updatedGeneration.id)) {
+                  return [updatedGeneration, ...prev];
+                }
+                return prev.map(g => g.id === updatedGeneration.id ? updatedGeneration : g);
+              });
+            } else {
+              setGenerations(prev => prev.filter(g => g.id !== updatedGeneration.id));
+            }
+          } else {
+            setGenerations(prev => prev.map(g => g.id === updatedGeneration.id ? updatedGeneration : g));
+          }
+        } else if (payload.eventType === 'DELETE') {
+          setGenerations(prev => prev.filter(g => g.id !== payload.old.id));
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -52,6 +60,7 @@ const GalleryView: React.FC = () => {
 
   const fetchGenerations = async () => {
     try {
+      setLoading(true);
       let query = supabase
         .from('generations')
         .select('*')
@@ -75,45 +84,23 @@ const GalleryView: React.FC = () => {
     }
   };
 
-  const handleDownload = async (imageUrl: string) => {
-    try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `generation-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading image:', error);
-    }
-  };
-
   const toggleFavorite = async (generation: Generation) => {
     try {
+      const timestamp = new Date().toISOString();
       const newFavoriteState = !generation.is_favorite;
-      
+
       const { error } = await supabase
         .from('generations')
         .update({ 
           is_favorite: newFavoriteState,
-          updated_at: new Date().toISOString()
+          updated_at: timestamp
         })
         .eq('id', generation.id);
 
       if (error) throw error;
 
       if (filter === 'favorites' && !newFavoriteState) {
-        // Remove from local state if unfavoriting in favorites view
         setGenerations(prev => prev.filter(g => g.id !== generation.id));
-      } else if (filter === 'all') {
-        // Update in local state if in all view
-        setGenerations(prev => 
-          prev.map(g => g.id === generation.id ? { ...g, is_favorite: newFavoriteState } : g)
-        );
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -123,7 +110,7 @@ const GalleryView: React.FC = () => {
   const handleDelete = async (generation: Generation) => {
     try {
       const timestamp = new Date().toISOString();
-      
+
       const { error } = await supabase
         .from('generations')
         .update({ 
@@ -133,9 +120,6 @@ const GalleryView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
-
-      // Remove from local state immediately
-      setGenerations(prev => prev.filter(g => g.id !== generation.id));
     } catch (error) {
       console.error('Error deleting generation:', error);
     }
