@@ -24,12 +24,7 @@ const GalleryView: React.FC = () => {
         table: 'generations',
         filter: `deleted_at.is.null${filter === 'favorites' ? ' AND is_favorite.eq.true' : ''}`
       }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newGeneration = payload.new as Generation;
-          if (!newGeneration.deleted_at && (filter === 'all' || (filter === 'favorites' && newGeneration.is_favorite))) {
-            setGenerations(prev => [newGeneration, ...prev]);
-          }
-        } else if (payload.eventType === 'UPDATE') {
+        if (payload.eventType === 'UPDATE') {
           const updatedGeneration = payload.new as Generation;
           if (updatedGeneration.deleted_at) {
             setGenerations(prev => prev.filter(g => g.id !== updatedGeneration.id));
@@ -122,6 +117,9 @@ const GalleryView: React.FC = () => {
     try {
       const timestamp = new Date().toISOString();
 
+      // Remove from local state immediately
+      setGenerations(prev => prev.filter(g => g.id !== generation.id));
+
       const { error } = await supabase
         .from('generations')
         .update({ 
@@ -131,9 +129,6 @@ const GalleryView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
-      
-      // Remove from local state immediately
-      setGenerations(prev => prev.filter(g => g.id !== generation.id));
     } catch (error) {
       console.error('Error deleting generation:', error);
     }
