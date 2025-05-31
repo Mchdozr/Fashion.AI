@@ -16,25 +16,20 @@ const DeletedView: React.FC = () => {
   useEffect(() => {
     const channel = supabase.channel('deleted_realtime')
       .on('postgres_changes', {
-        event: '*',
+        event: 'UPDATE',
         schema: 'public',
-        table: 'generations',
-        filter: 'deleted_at.is.not.null'
+        table: 'generations'
       }, (payload) => {
-        if (payload.eventType === 'UPDATE') {
-          const updatedGeneration = payload.new as Generation;
-          if (updatedGeneration.deleted_at) {
-            setDeletedItems(prev => {
-              if (!prev.find(item => item.id === updatedGeneration.id)) {
-                return [updatedGeneration, ...prev];
-              }
-              return prev;
-            });
-          } else {
-            setDeletedItems(prev => prev.filter(item => item.id !== updatedGeneration.id));
-          }
-        } else if (payload.eventType === 'DELETE') {
-          setDeletedItems(prev => prev.filter(item => item.id !== payload.old.id));
+        const updatedGeneration = payload.new as Generation;
+        if (updatedGeneration.deleted_at) {
+          setDeletedItems(prev => {
+            if (!prev.find(item => item.id === updatedGeneration.id)) {
+              return [updatedGeneration, ...prev];
+            }
+            return prev;
+          });
+        } else {
+          setDeletedItems(prev => prev.filter(item => item.id !== updatedGeneration.id));
         }
       })
       .subscribe();
@@ -64,6 +59,9 @@ const DeletedView: React.FC = () => {
 
   const handleRestore = async (generation: Generation) => {
     try {
+      // Optimistically update UI
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
+
       const timestamp = new Date().toISOString();
       
       const { error } = await supabase
@@ -74,22 +72,33 @@ const DeletedView: React.FC = () => {
         })
         .eq('id', generation.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error restoring item:', error);
+      // Revert optimistic update on error
+      fetchDeletedItems();
     }
   };
 
   const handlePermanentDelete = async (generation: Generation) => {
     try {
+      // Optimistically update UI
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
+
       const { error } = await supabase
         .from('generations')
         .delete()
         .eq('id', generation.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error permanently deleting item:', error);
+      // Revert optimistic update on error
+      fetchDeletedItems();
     }
   };
 
