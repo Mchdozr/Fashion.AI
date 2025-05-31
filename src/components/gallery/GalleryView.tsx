@@ -131,6 +131,9 @@ const GalleryView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
+      
+      // Remove from local state immediately
+      setGenerations(prev => prev.filter(g => g.id !== generation.id));
     } catch (error) {
       console.error('Error deleting generation:', error);
     }
