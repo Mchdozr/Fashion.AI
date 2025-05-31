@@ -45,26 +45,82 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Local storage keys
+const STORAGE_KEYS = {
+  MODEL_IMAGE: 'fashnai_model_image',
+  GARMENT_IMAGE: 'fashnai_garment_image',
+  CATEGORY: 'fashnai_category',
+  PERFORMANCE_MODE: 'fashnai_performance_mode',
+  NUM_SAMPLES: 'fashnai_num_samples',
+  SEED: 'fashnai_seed'
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [modelImage, setModelImage] = useState<string | null>(null);
-  const [garmentImage, setGarmentImage] = useState<string | null>(null);
+  const [modelImage, setModelImageState] = useState<string | null>(() => 
+    localStorage.getItem(STORAGE_KEYS.MODEL_IMAGE)
+  );
+  const [garmentImage, setGarmentImageState] = useState<string | null>(() => 
+    localStorage.getItem(STORAGE_KEYS.GARMENT_IMAGE)
+  );
   const [resultImage, setResultImage] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>('top');
+  const [category, setCategoryState] = useState<string>(() => 
+    localStorage.getItem(STORAGE_KEYS.CATEGORY) || 'top'
+  );
   
   const [isModelGenerating, setIsModelGenerating] = useState<boolean>(false);
-  const [isModelReady, setIsModelReady] = useState<boolean>(false);
+  const [isModelReady, setIsModelReady] = useState<boolean>(!!modelImage);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationStatus, setGenerationStatus] = useState<'pending' | 'processing' | 'completed' | 'failed'>('pending');
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   
-  const [performanceMode, setPerformanceMode] = useState<string>('balanced');
-  const [numSamples, setNumSamples] = useState<number>(1);
-  const [seed, setSeed] = useState<number>(Math.floor(Math.random() * 100000));
+  const [performanceMode, setPerformanceModeState] = useState<string>(() => 
+    localStorage.getItem(STORAGE_KEYS.PERFORMANCE_MODE) || 'balanced'
+  );
+  const [numSamples, setNumSamplesState] = useState<number>(() => 
+    parseInt(localStorage.getItem(STORAGE_KEYS.NUM_SAMPLES) || '1', 10)
+  );
+  const [seed, setSeedState] = useState<number>(() => 
+    parseInt(localStorage.getItem(STORAGE_KEYS.SEED) || String(Math.floor(Math.random() * 100000)), 10)
+  );
 
   const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<number>(0);
 
+  // Persist state to localStorage
+  const setModelImage = (url: string | null) => {
+    if (url) localStorage.setItem(STORAGE_KEYS.MODEL_IMAGE, url);
+    else localStorage.removeItem(STORAGE_KEYS.MODEL_IMAGE);
+    setModelImageState(url);
+  };
+
+  const setGarmentImage = (url: string | null) => {
+    if (url) localStorage.setItem(STORAGE_KEYS.GARMENT_IMAGE, url);
+    else localStorage.removeItem(STORAGE_KEYS.GARMENT_IMAGE);
+    setGarmentImageState(url);
+  };
+
+  const setCategory = (value: string) => {
+    localStorage.setItem(STORAGE_KEYS.CATEGORY, value);
+    setCategoryState(value);
+  };
+
+  const setPerformanceMode = (value: string) => {
+    localStorage.setItem(STORAGE_KEYS.PERFORMANCE_MODE, value);
+    setPerformanceModeState(value);
+  };
+
+  const setNumSamples = (value: number) => {
+    localStorage.setItem(STORAGE_KEYS.NUM_SAMPLES, String(value));
+    setNumSamplesState(value);
+  };
+
+  const setSeed = (value: number) => {
+    localStorage.setItem(STORAGE_KEYS.SEED, String(value));
+    setSeedState(value);
+  };
+
   const clearUserData = () => {
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
     setModelImage(null);
     setGarmentImage(null);
     setResultImage(null);
@@ -92,7 +148,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        clearUserData(); // Clear data before fetching new user's data
         fetchUserData(session.user.id);
       } else {
         clearUserData();
