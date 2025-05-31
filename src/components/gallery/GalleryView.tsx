@@ -47,8 +47,6 @@ const GalleryView: React.FC = () => {
           } else {
             setGenerations(prev => prev.map(g => g.id === updatedGeneration.id ? updatedGeneration : g));
           }
-        } else if (payload.eventType === 'DELETE') {
-          setGenerations(prev => prev.filter(g => g.id !== payload.old.id));
         }
       })
       .subscribe();
@@ -115,10 +113,6 @@ const GalleryView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) throw error;
-
-      if (filter === 'favorites' && !newFavoriteState) {
-        setGenerations(prev => prev.filter(g => g.id !== generation.id));
-      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
     }
