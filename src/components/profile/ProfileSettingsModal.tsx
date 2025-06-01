@@ -125,5 +125,3 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
     </div>
   );
 };
-
-export default ProfileSettingsModal;
