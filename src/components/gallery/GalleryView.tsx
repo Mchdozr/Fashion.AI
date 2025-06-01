@@ -97,49 +97,51 @@ const GalleryView: React.FC = () => {
   const toggleFavorite = async (generation: Generation) => {
     try {
       const newFavoriteState = !generation.is_favorite;
-      
-      // Optimistically update UI
-      setGenerations(prev => 
-        prev.map(g => g.id === generation.id ? { ...g, is_favorite: newFavoriteState } : g)
-      );
+      const now = new Date().toISOString();
 
       const { error } = await supabase
         .from('generations')
-        .update({ 
+        .update({
           is_favorite: newFavoriteState,
-          updated_at: new Date().toISOString()
+          updated_at: now
         })
         .eq('id', generation.id);
 
       if (error) {
         throw error;
       }
+
+      // Update local state after successful API call
+      setGenerations(prev =>
+        prev.map(g => g.id === generation.id ? { ...g, is_favorite: newFavoriteState, updated_at: now } : g)
+      );
     } catch (error) {
       console.error('Error toggling favorite:', error);
       // Revert optimistic update on error
-      setGenerations(prev => 
+      setGenerations(prev =>
         prev.map(g => g.id === generation.id ? { ...g, is_favorite: generation.is_favorite } : g)
       );
-      fetchGenerations();
     }
   };
 
   const handleDelete = async (generation: Generation) => {
     try {
-      // Optimistically update UI
-      setGenerations(prev => prev.filter(g => g.id !== generation.id));
+      const now = new Date().toISOString();
 
       const { error } = await supabase
         .from('generations')
-        .update({ 
-          deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        .update({
+          deleted_at: now,
+          updated_at: now
         })
         .eq('id', generation.id);
 
       if (error) {
         throw error;
       }
+
+      // Remove from local state after successful API call
+      setGenerations(prev => prev.filter(g => g.id !== generation.id));
     } catch (error) {
       console.error('Error deleting generation:', error);
       // Revert optimistic update on error
