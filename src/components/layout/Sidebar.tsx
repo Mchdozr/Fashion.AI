@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Laptop,
-  Image as ImageIcon,
+  Shirt,
   FolderHeart,
   Trash2,
   Info,
@@ -26,7 +26,7 @@ const Sidebar: React.FC = () => {
       <div className="px-4 mb-8">
         <div className="flex items-center">
           <div className="bg-white p-1 rounded">
-            <ImageIcon size={18} className="text-black" />
+            <Shirt size={18} className="text-black" />
           </div>
           <span className="ml-2 text-xl font-bold text-white">FASHNAI</span>
         </div>
