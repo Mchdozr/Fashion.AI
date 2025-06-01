@@ -26,12 +26,6 @@ const Header: React.FC = () => {
     }
   };
 
-  const getInitials = () => {
-    const firstName = user?.user_metadata?.first_name || '';
-    const lastName = user?.user_metadata?.last_name || '';
-    return (firstName[0] || '') + (lastName[0] || '').toUpperCase();
-  };
-
   return (
     <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-4 py-2">
       <div className="flex items-center">
@@ -58,57 +52,47 @@ const Header: React.FC = () => {
               <span className="text-sm">Buy Credits</span>
             </button>
             
-            <div className="relative">
+            <div className="flex items-center gap-2">
+              <div className="text-right mr-2 hidden md:block">
+                <div className="text-sm font-medium text-white">
+                  {user.user_metadata?.first_name} {user.user_metadata?.last_name}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {user.email}
+                </div>
+              </div>
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[#2A2A2A] transition-colors duration-150"
+                className="relative w-8 h-8 rounded-full bg-[#F8D74B] flex items-center justify-center"
               >
-                <div className="w-8 h-8 rounded-full bg-[#F8D74B] flex items-center justify-center">
-                  <span className="text-sm font-bold text-black">{getInitials()}</span>
-                </div>
-                <div className="text-left hidden md:block">
-                  <div className="text-sm font-medium text-white">
-                    {user.user_metadata?.first_name} {user.user_metadata?.last_name}
-                  </div>
-                  <div className="text-xs text-gray-400 truncate max-w-[150px]">
-                    {user.email}
-                  </div>
-                </div>
-                <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${isProfileMenuOpen ? 'transform rotate-180' : ''}`} />
+                <span className="text-sm font-bold text-black">
+                  {user.user_metadata?.first_name?.[0]}{user.user_metadata?.last_name?.[0]}
+                </span>
               </button>
-
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
-                  <div className="px-4 py-3 border-b border-[#333333]">
-                    <div className="font-medium text-sm text-white">
-                      {user.user_metadata?.first_name} {user.user_metadata?.last_name}
-                    </div>
-                    <div className="text-xs text-gray-400 truncate">
-                      {user.email}
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      // Add profile settings handler
-                    }}
-                    className="w-full px-4 py-2.5 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
-                  >
-                    <Settings size={16} />
-                    Profile Settings
-                  </button>
-                  
-                  <button 
-                    onClick={handleSignOut}
-                    className="w-full px-4 py-2.5 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
-                  >
-                    <LogOut size={16} />
-                    Sign Out
-                  </button>
-                </div>
-              )}
             </div>
+
+            {isProfileMenuOpen && (
+              <div className="absolute right-4 top-14 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                <button 
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    // Add profile settings handler
+                  }}
+                  className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
+                >
+                  <Settings size={16} />
+                  Profile Settings
+                </button>
+                
+                <button 
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <button
