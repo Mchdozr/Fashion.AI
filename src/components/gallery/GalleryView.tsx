@@ -96,32 +96,23 @@ const GalleryView: React.FC = () => {
 
   const toggleFavorite = async (generation: Generation) => {
     try {
-      const newFavoriteState = !generation.is_favorite;
-      const now = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('generations')
-        .update({
-          is_favorite: newFavoriteState,
-          updated_at: now
-        })
-        .eq('id', generation.id);
+      const { data, error } = await supabase.rpc('toggle_favorite', {
+        generation_id: generation.id
+      });
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Toggle favorite error:', error);
         throw error;
       }
 
-      // Update local state after successful API call
-      setGenerations(prev =>
-        prev.map(g => g.id === generation.id ? { ...g, is_favorite: newFavoriteState, updated_at: now } : g)
-      );
+      // Update local state based on the response
+      if (data) {
+        setGenerations(prev =>
+          prev.map(g => g.id === generation.id ? { ...g, is_favorite: data.is_favorite } : g)
+        );
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      // Revert optimistic update on error
-      setGenerations(prev =>
-        prev.map(g => g.id === generation.id ? { ...g, is_favorite: generation.is_favorite } : g)
-      );
     }
   };
 
