@@ -55,7 +55,7 @@ const Header: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="text-right mr-2 hidden md:block">
                 <div className="text-sm font-medium text-white">
-                  {user.user_metadata?.first_name} {user.user_metadata?.last_name}
+                  Mücahid Özer
                 </div>
                 <div className="text-xs text-gray-400">
                   {user.email}
@@ -66,7 +66,7 @@ const Header: React.FC = () => {
                 className="relative w-8 h-8 rounded-full bg-[#F8D74B] flex items-center justify-center"
               >
                 <span className="text-sm font-bold text-black">
-                  {user.user_metadata?.first_name?.[0]}{user.user_metadata?.last_name?.[0]}
+                  MÖ
                 </span>
               </button>
             </div>
@@ -76,7 +76,6 @@ const Header: React.FC = () => {
                 <button 
                   onClick={() => {
                     setIsProfileMenuOpen(false);
-                    // Add profile settings handler
                   }}
                   className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
                 >

@@ -38,12 +38,12 @@ const Sidebar: React.FC = () => {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-[#F8D74B] flex items-center justify-center">
                 <span className="text-sm font-bold text-black">
-                  {user.user_metadata?.first_name?.[0]}{user.user_metadata?.last_name?.[0]}
+                  MÖ
                 </span>
               </div>
               <div>
                 <div className="text-sm font-medium text-white">
-                  {user.user_metadata?.first_name} {user.user_metadata?.last_name}
+                  Mücahid Özer
                 </div>
                 <div className="text-xs text-gray-400 truncate max-w-[180px]">
                   {user.email}
