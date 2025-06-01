@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Shirt, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAppContext } from '../../contexts/AppContext';
 
@@ -78,7 +78,7 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center bg-white p-2 rounded-lg mb-4">
-            <ImageIcon size={24} className="text-black" />
+            <Shirt size={24} className="text-black" />
           </div>
           <h1 className="text-2xl font-bold text-white">FASHNAI STUDIO</h1>
           <p className="text-gray-400 mt-2">AI-powered fashion experience</p>
@@ -94,7 +94,7 @@ const LoginPage: React.FC = () => {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName\" className="block text-sm font-medium text-gray-300 mb-1">
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
                       First Name
                     </label>
                     <input
