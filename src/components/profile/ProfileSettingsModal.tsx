@@ -100,9 +100,10 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Email
             </label>
-            <div className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-gray-400">
+            <div className="w-full bg-[#2A2A2A] border border-[#444444] rounded-md px-3 py-2 text-gray-400 cursor-not-allowed">
               {user.email}
             </div>
+            <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
           </div>
 
           {error && (
