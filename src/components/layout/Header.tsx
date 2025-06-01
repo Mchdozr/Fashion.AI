@@ -5,6 +5,7 @@ import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
 import ProfileSettingsModal from '../profile/ProfileSettingsModal';
 import { supabase } from '../../lib/supabase';
+import { useLocation } from 'react-router-dom';
 
 const Header: React.FC = () => {
   const { user, credits } = useAppContext();
@@ -12,6 +13,7 @@ const Header: React.FC = () => {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
+  const location = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -25,7 +27,9 @@ const Header: React.FC = () => {
   return (
     <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-4 py-2">
       <div className="flex items-center">
-        <h1 className="text-xl font-bold">STUDIO</h1>
+        {location.pathname === '/' && (
+          <h1 className="text-xl font-bold">STUDIO</h1>
+        )}
       </div>
       
       <div className="flex items-center space-x-4">
