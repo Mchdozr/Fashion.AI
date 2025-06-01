@@ -5,6 +5,12 @@ import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
 import { supabase } from '../../lib/supabase';
 
+interface SubscriptionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentTier: string;
+}
+
 const Header: React.FC = () => {
   const { user, credits } = useAppContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -18,6 +24,12 @@ const Header: React.FC = () => {
     } catch (error) {
       console.debug('Sign out error:', error);
     }
+  };
+
+  const getInitials = () => {
+    const firstName = user?.user_metadata?.first_name || '';
+    const lastName = user?.user_metadata?.last_name || '';
+    return (firstName[0] || '') + (lastName[0] || '').toUpperCase();
   };
 
   return (
@@ -51,10 +63,8 @@ const Header: React.FC = () => {
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[#2A2A2A] transition-colors duration-150"
               >
-                <div className="w-8 h-8 rounded-full bg-[#333333] flex items-center justify-center">
-                  <span className="text-sm font-medium">
-                    {user.user_metadata?.first_name?.[0]}{user.user_metadata?.last_name?.[0]}
-                  </span>
+                <div className="w-8 h-8 rounded-full bg-[#F8D74B] text-black flex items-center justify-center">
+                  <span className="text-sm font-semibold">{getInitials()}</span>
                 </div>
                 <div className="text-left hidden md:block">
                   <div className="text-sm font-medium">
