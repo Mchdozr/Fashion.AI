@@ -46,7 +46,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Local storage keys
 const STORAGE_KEYS = {
   MODEL_IMAGE: 'fashnai_model_image',
   GARMENT_IMAGE: 'fashnai_garment_image',
@@ -87,7 +86,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [user, setUser] = useState<User | null>(null);
   const [credits, setCredits] = useState<number>(0);
 
-  // Persist state to localStorage
   const setModelImage = (url: string | null) => {
     if (url) localStorage.setItem(STORAGE_KEYS.MODEL_IMAGE, url);
     else localStorage.removeItem(STORAGE_KEYS.MODEL_IMAGE);
@@ -138,6 +136,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCredits(0);
   };
 
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userError) throw userError;
+
+      setUser(userData);
+      setCredits(userData.credits);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      clearUserData();
+    }
+  };
+
   const refreshUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
@@ -178,22 +194,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }, 3000);
     }
   }, [modelImage]);
-
-  const fetchUserData = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user data:', error);
-      return;
-    }
-
-    setUser(data);
-    setCredits(data.credits);
-  };
 
   const uploadImage = async (imageDataUrl: string): Promise<string> => {
     const response = await fetch(imageDataUrl);
