@@ -63,24 +63,24 @@ const Header: React.FC = () => {
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[#2A2A2A] transition-colors duration-150"
               >
-                <div className="w-8 h-8 rounded-full bg-[#F8D74B] text-black flex items-center justify-center">
-                  <span className="text-sm font-semibold">{getInitials()}</span>
+                <div className="w-8 h-8 rounded-full bg-[#F8D74B] flex items-center justify-center">
+                  <span className="text-sm font-bold text-black">{getInitials()}</span>
                 </div>
                 <div className="text-left hidden md:block">
-                  <div className="text-sm font-medium">
+                  <div className="text-sm font-medium text-white">
                     {user.user_metadata?.first_name} {user.user_metadata?.last_name}
                   </div>
                   <div className="text-xs text-gray-400 truncate max-w-[150px]">
                     {user.email}
                   </div>
                 </div>
-                <ChevronDown size={16} className="text-gray-400" />
+                <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${isProfileMenuOpen ? 'transform rotate-180' : ''}`} />
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
-                  <div className="md:hidden px-4 py-2 border-b border-[#333333]">
-                    <div className="font-medium text-sm">
+                <div className="absolute right-0 mt-2 w-64 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                  <div className="px-4 py-3 border-b border-[#333333]">
+                    <div className="font-medium text-sm text-white">
                       {user.user_metadata?.first_name} {user.user_metadata?.last_name}
                     </div>
                     <div className="text-xs text-gray-400 truncate">
@@ -93,7 +93,7 @@ const Header: React.FC = () => {
                       setIsProfileMenuOpen(false);
                       // Add profile settings handler
                     }}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
                   >
                     <Settings size={16} />
                     Profile Settings
@@ -101,7 +101,7 @@ const Header: React.FC = () => {
                   
                   <button 
                     onClick={handleSignOut}
-                    className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
                   >
                     <LogOut size={16} />
                     Sign Out
