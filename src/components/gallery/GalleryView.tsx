@@ -108,6 +108,7 @@ const GalleryView: React.FC = () => {
         .eq('id', generation.id);
 
       if (error) {
+        console.error('Supabase error:', error);
         throw error;
       }
 
