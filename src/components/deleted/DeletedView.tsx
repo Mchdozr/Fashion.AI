@@ -59,46 +59,35 @@ const DeletedView: React.FC = () => {
 
   const handleRestore = async (generation: Generation) => {
     try {
-      // Optimistically update UI
-      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
-
-      const timestamp = new Date().toISOString();
-      
-      const { error } = await supabase
-        .from('generations')
-        .update({ 
-          deleted_at: null,
-          updated_at: timestamp
-        })
-        .eq('id', generation.id);
+      const { error } = await supabase.rpc('restore_generation', {
+        generation_id: generation.id
+      });
 
       if (error) {
         throw error;
       }
+
+      // Remove from local state after successful restore
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error restoring item:', error);
-      // Revert optimistic update on error
-      fetchDeletedItems();
     }
   };
 
   const handlePermanentDelete = async (generation: Generation) => {
     try {
-      // Optimistically update UI
-      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
-
-      const { error } = await supabase
-        .from('generations')
-        .delete()
-        .eq('id', generation.id);
+      const { error } = await supabase.rpc('permanent_delete_generation', {
+        generation_id: generation.id
+      });
 
       if (error) {
         throw error;
       }
+
+      // Remove from local state after successful deletion
+      setDeletedItems(prev => prev.filter(item => item.id !== generation.id));
     } catch (error) {
       console.error('Error permanently deleting item:', error);
-      // Revert optimistic update on error
-      fetchDeletedItems();
     }
   };
 
