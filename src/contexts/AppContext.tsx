@@ -148,10 +148,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (userError) throw userError;
 
-      setUser({
+      const updatedUser = {
         ...userData,
         email: authUser?.email || ''
-      });
+      };
+
+      setUser(updatedUser);
       setCredits(userData.credits);
     } catch (error) {
       console.error('Error fetching user data:', error);
