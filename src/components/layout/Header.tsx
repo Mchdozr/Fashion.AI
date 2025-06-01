@@ -1,28 +1,24 @@
 import React, { useState } from 'react';
-import { UserCircle, CreditCard, LogOut, Settings, ChevronDown } from 'lucide-react';
+import { UserCircle, CreditCard, LogOut, Settings } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
+import ProfileSettingsModal from '../profile/ProfileSettingsModal';
 import { supabase } from '../../lib/supabase';
-
-interface SubscriptionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentTier: string;
-}
 
 const Header: React.FC = () => {
   const { user, credits } = useAppContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
       setIsProfileMenuOpen(false);
     } catch (error) {
-      console.debug('Sign out error:', error);
+      console.error('Sign out error:', error);
     }
   };
 
@@ -52,46 +48,37 @@ const Header: React.FC = () => {
               <span className="text-sm">Buy Credits</span>
             </button>
             
-            <div className="flex items-center gap-2">
-              <div className="text-right mr-2 hidden md:block">
-                <div className="text-sm font-medium text-white">
-                  Mücahid Özer
-                </div>
-                <div className="text-xs text-gray-400">
-                  {user.email}
-                </div>
-              </div>
+            <div className="relative">
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="relative w-8 h-8 rounded-full bg-[#F8D74B] flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors duration-150"
               >
-                <span className="text-sm font-bold text-black">
-                  MÖ
-                </span>
+                <UserCircle size={20} className="text-gray-300" />
               </button>
-            </div>
 
-            {isProfileMenuOpen && (
-              <div className="absolute right-4 top-14 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
-                <button 
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
-                >
-                  <Settings size={16} />
-                  Profile Settings
-                </button>
-                
-                <button 
-                  onClick={handleSignOut}
-                  className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
-                >
-                  <LogOut size={16} />
-                  Sign Out
-                </button>
-              </div>
-            )}
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 top-10 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                  <button 
+                    onClick={() => {
+                      setIsProfileSettingsOpen(true);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
+                  >
+                    <Settings size={16} />
+                    Profile Settings
+                  </button>
+                  
+                  <button 
+                    onClick={handleSignOut}
+                    className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <button
@@ -109,11 +96,18 @@ const Header: React.FC = () => {
       />
 
       {user && (
-        <SubscriptionModal
-          isOpen={isSubscriptionModalOpen}
-          onClose={() => setIsSubscriptionModalOpen(false)}
-          currentTier={user.subscription_tier}
-        />
+        <>
+          <SubscriptionModal
+            isOpen={isSubscriptionModalOpen}
+            onClose={() => setIsSubscriptionModalOpen(false)}
+            currentTier={user.subscription_tier}
+          />
+          
+          <ProfileSettingsModal
+            isOpen={isProfileSettingsOpen}
+            onClose={() => setIsProfileSettingsOpen(false)}
+          />
+        </>
       )}
     </header>
   );
