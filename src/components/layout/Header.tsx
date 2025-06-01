@@ -26,11 +26,6 @@ const Header: React.FC = () => {
     <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-4 py-2">
       <div className="flex items-center">
         <h1 className="text-xl font-bold">STUDIO</h1>
-        {user && (
-          <div className="ml-4 px-2 py-1 bg-[#333333] rounded text-xs text-gray-300">
-            {user.subscription_tier === 'free' ? 'Free Plan' : user.subscription_tier === 'pro' ? 'Pro Plan' : 'Enterprise Plan'}
-          </div>
-        )}
       </div>
       
       <div className="flex items-center space-x-4">
