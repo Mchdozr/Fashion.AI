@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCircle, CreditCard } from 'lucide-react';
+import { UserCircle, CreditCard, LogOut, Settings, User } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import AuthModal from '../auth/AuthModal';
 import SubscriptionModal from '../subscription/SubscriptionModal';
@@ -9,10 +9,12 @@ const Header: React.FC = () => {
   const { user, credits } = useAppContext();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
+      setIsProfileMenuOpen(false);
     } catch (error) {
       console.debug('Sign out error:', error);
     }
@@ -44,12 +46,42 @@ const Header: React.FC = () => {
               <span className="text-sm">Buy Credits</span>
             </button>
             
-            <button 
-              onClick={handleSignOut}
-              className="text-gray-400 hover:text-gray-300 transition-colors duration-150"
-            >
-              <UserCircle size={24} strokeWidth={1.5} />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="text-gray-400 hover:text-gray-300 transition-colors duration-150"
+              >
+                <UserCircle size={24} strokeWidth={1.5} />
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                  <div className="px-4 py-2 border-b border-[#333333]">
+                    <div className="font-medium text-sm">{user.user_metadata?.first_name} {user.user_metadata?.last_name}</div>
+                    <div className="text-xs text-gray-400 truncate">{user.email}</div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      // Add profile settings handler
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2"
+                  >
+                    <Settings size={16} />
+                    Profile Settings
+                  </button>
+                  
+                  <button 
+                    onClick={handleSignOut}
+                    className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <button
