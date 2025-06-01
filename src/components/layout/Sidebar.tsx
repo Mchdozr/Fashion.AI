@@ -20,6 +20,13 @@ const Sidebar: React.FC = () => {
     { icon: <Info size={20} />, label: 'About', path: '/about' },
   ];
 
+  const getInitials = (user: any) => {
+    if (!user) return '';
+    const firstInitial = user.first_name?.[0] || '';
+    const lastInitial = user.last_name?.[0] || '';
+    return (firstInitial + lastInitial).toUpperCase();
+  };
+
   return (
     <div className="w-72 h-full bg-[#171717] py-4 flex flex-col overflow-y-auto">
       <div className="px-4 mb-8">
@@ -37,7 +44,7 @@ const Sidebar: React.FC = () => {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-[#F8D74B] flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-bold text-black">
-                  {user.first_name?.[0]}{user.last_name?.[0]}
+                  {getInitials(user)}
                 </span>
               </div>
               <div className="min-w-0">
