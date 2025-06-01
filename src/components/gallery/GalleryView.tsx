@@ -118,15 +118,9 @@ const GalleryView: React.FC = () => {
 
   const handleDelete = async (generation: Generation) => {
     try {
-      const now = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('generations')
-        .update({
-          deleted_at: now,
-          updated_at: now
-        })
-        .eq('id', generation.id);
+      const { error } = await supabase.rpc('soft_delete_generation', {
+        generation_id: generation.id
+      });
 
       if (error) {
         throw error;
@@ -136,8 +130,6 @@ const GalleryView: React.FC = () => {
       setGenerations(prev => prev.filter(g => g.id !== generation.id));
     } catch (error) {
       console.error('Error deleting generation:', error);
-      // Revert optimistic update on error
-      fetchGenerations();
     }
   };
 
