@@ -138,6 +138,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchUserData = async (userId: string) => {
     try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -146,7 +148,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (userError) throw userError;
 
-      setUser(userData);
+      setUser({
+        ...userData,
+        email: authUser?.email || ''
+      });
       setCredits(userData.credits);
     } catch (error) {
       console.error('Error fetching user data:', error);
