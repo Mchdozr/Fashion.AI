@@ -5,8 +5,7 @@ import {
   Shirt,
   FolderHeart,
   Trash2,
-  Info,
-  User
+  Info
 } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 
@@ -16,9 +15,9 @@ const Sidebar: React.FC = () => {
   
   const menuItems = [
     { icon: <Laptop size={20} />, label: 'Studio', path: '/' },
-    { icon: <FolderHeart size={20} />, label: 'My Gallery', path: '/gallery' },
-    { icon: <Trash2 size={20} />, label: 'Deleted Items', path: '/deleted' },
-    { icon: <Info size={20} />, label: 'About Us', path: '/about' },
+    { icon: <FolderHeart size={20} />, label: 'Galeri', path: '/gallery' },
+    { icon: <Trash2 size={20} />, label: 'Çöp Kutusu', path: '/deleted' },
+    { icon: <Info size={20} />, label: 'Hakkında', path: '/about' },
   ];
 
   return (
@@ -51,7 +50,7 @@ const Sidebar: React.FC = () => {
               </div>
             </div>
             <div className="text-xs text-gray-400 flex items-center justify-between border-t border-[#333333] pt-3">
-              <span>Subscription</span>
+              <span>Abonelik</span>
               <span className="text-white capitalize">{user.subscription_tier}</span>
             </div>
           </div>

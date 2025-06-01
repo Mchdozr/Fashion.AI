@@ -65,12 +65,12 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
           <X size={20} />
         </button>
 
-        <h2 className="text-xl font-bold mb-6">Profile Settings</h2>
+        <h2 className="text-xl font-bold mb-6">Profil Ayarları</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
-              First Name
+              Ad
             </label>
             <input
               type="text"
@@ -84,7 +84,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
 
           <div>
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-1">
-              Last Name
+              Soyad
             </label>
             <input
               type="text"
@@ -98,7 +98,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Email
+              E-posta
             </label>
             <div className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-gray-400">
               {user.email}
@@ -110,7 +110,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
           )}
 
           {success && (
-            <div className="text-green-400 text-sm">Profile updated successfully!</div>
+            <div className="text-green-400 text-sm">Profil başarıyla güncellendi!</div>
           )}
 
           <button
@@ -118,7 +118,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
             disabled={loading}
             className="w-full bg-[#F8D74B] hover:bg-[#f9df6e] text-black font-medium py-2 rounded-md transition-colors duration-150 disabled:bg-gray-600 disabled:text-gray-400"
           >
-            {loading ? 'Saving...' : 'Save Changes'}
+            {loading ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
           </button>
         </form>
       </div>
@@ -126,4 +126,4 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
   );
 };
 
-export default ProfileSettingsModal
+export default ProfileSettingsModal;

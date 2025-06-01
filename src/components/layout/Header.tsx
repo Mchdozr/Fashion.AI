@@ -36,7 +36,7 @@ const Header: React.FC = () => {
         {user ? (
           <>
             <div className="text-sm text-gray-300">
-              Credits: <span className="font-medium text-white">{credits}</span>
+              Krediler: <span className="font-medium text-white">{credits}</span>
             </div>
             
             <button 
@@ -44,7 +44,7 @@ const Header: React.FC = () => {
               className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150"
             >
               <CreditCard size={18} />
-              <span className="text-sm">Buy Credits</span>
+              <span className="text-sm">Kredi Satın Al</span>
             </button>
             
             <div className="relative">
@@ -65,7 +65,7 @@ const Header: React.FC = () => {
                     className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
                   >
                     <Settings size={16} />
-                    Profile Settings
+                    Profil Ayarları
                   </button>
                   
                   <button 
@@ -73,7 +73,7 @@ const Header: React.FC = () => {
                     className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
                   >
                     <LogOut size={16} />
-                    Sign Out
+                    Çıkış Yap
                   </button>
                 </div>
               )}
@@ -84,7 +84,7 @@ const Header: React.FC = () => {
             onClick={() => setIsAuthModalOpen(true)}
             className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
-            <span className="text-sm">Sign In</span>
+            <span className="text-sm">Giriş Yap</span>
           </button>
         )}
       </div>
