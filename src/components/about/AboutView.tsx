@@ -9,7 +9,7 @@ const AboutView: React.FC = () => {
       description: 'Experience the future of fashion with our state-of-the-art AI technology that creates stunning virtual try-ons.'
     },
     {
-      icon: <Zap className="text-[#F8D74B]\" size={32} />,
+      icon: <Zap className="text-[#F8D74B]" size={32} />,
       title: 'Lightning Fast',
       description: 'Get results in seconds with our optimized processing pipeline and high-performance infrastructure.'
     },
@@ -19,7 +19,7 @@ const AboutView: React.FC = () => {
       description: 'Your data is protected with enterprise-grade security. We never share your images without permission.'
     },
     {
-      icon: <Users className="text-[#F8D74B]\" size={32} />,
+      icon: <Users className="text-[#F8D74B]" size={32} />,
       title: 'Built for Everyone',
       description: 'Whether you\'re a fashion enthusiast or a business owner, our platform is designed to meet your needs.'
     }
@@ -47,7 +47,7 @@ const AboutView: React.FC = () => {
         ))}
       </div>
 
-      <div className="bg-[#222222] p-8 rounded-xl border border-[#333333]">
+      <div className="bg-[#222222] p-8 rounded-xl border border-[#333333] hover:border-[#F8D74B] transition-colors duration-300">
         <h2 className="text-2xl font-bold mb-6">Our Mission</h2>
         <p className="text-gray-300 leading-relaxed mb-6">
           At FashnAI Studio, we're on a mission to transform the online shopping experience by bridging the gap between digital and physical fashion. Our AI-powered platform enables users to virtually try on clothes with unprecedented realism, helping them make confident purchase decisions from the comfort of their homes.
