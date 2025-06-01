@@ -28,9 +28,7 @@ const Sidebar: React.FC = () => {
           <div className="bg-white p-1 rounded">
             <Shirt size={18} className="text-black" />
           </div>
-          <span className="ml-2 text-xl font-bold text-white">
-            FASHNAI{location.pathname === '/' && <span className="ml-1">STUDIO</span>}
-          </span>
+          <span className="ml-2 text-xl font-bold text-white">FASHNAI</span>
         </div>
       </div>
 
