@@ -41,6 +41,7 @@ interface AppContextType {
   user: User | null;
   credits: number;
   clearUserData: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -135,6 +136,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSeed(Math.floor(Math.random() * 100000));
     setUser(null);
     setCredits(0);
+  };
+
+  const refreshUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await fetchUserData(session.user.id);
+    }
   };
 
   useEffect(() => {
@@ -407,7 +415,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         startGeneration,
         user,
         credits,
-        clearUserData
+        clearUserData,
+        refreshUser
       }}
     >
       {children}

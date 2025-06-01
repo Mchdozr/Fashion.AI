@@ -16,6 +16,9 @@ export interface Database {
           subscription_tier: 'free' | 'pro' | 'enterprise'
           created_at: string
           updated_at: string
+          first_name: string | null
+          last_name: string | null
+          email: string
         }
         Insert: {
           id: string
@@ -23,6 +26,9 @@ export interface Database {
           subscription_tier?: 'free' | 'pro' | 'enterprise'
           created_at?: string
           updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
+          email: string
         }
         Update: {
           id?: string
@@ -30,6 +36,9 @@ export interface Database {
           subscription_tier?: 'free' | 'pro' | 'enterprise'
           created_at?: string
           updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
+          email?: string
         }
       }
       generations: {

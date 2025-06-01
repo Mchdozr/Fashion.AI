@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAppContext } from '../../contexts/AppContext';
 import { supabase } from '../../lib/supabase';
@@ -9,14 +9,21 @@ interface ProfileSettingsModalProps {
 }
 
 const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user } = useAppContext();
-  const [firstName, setFirstName] = useState('Mücahid');
-  const [lastName, setLastName] = useState('Özer');
+  const { user, refreshUser } = useAppContext();
+  const [firstName, setFirstName] = useState(user?.first_name || '');
+  const [lastName, setLastName] = useState(user?.last_name || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.first_name || '');
+      setLastName(user.last_name || '');
+    }
+  }, [user]);
+
+  if (!isOpen || !user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,15 +32,18 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
     setSuccess(false);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
           first_name: firstName,
-          last_name: lastName
-        }
-      });
+          last_name: lastName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
+      await refreshUser();
       setSuccess(true);
       setTimeout(() => {
         onClose();
@@ -91,7 +101,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
               Email
             </label>
             <div className="w-full bg-[#333333] border border-[#444444] rounded-md px-3 py-2 text-gray-400">
-              {user?.email}
+              {user.email}
             </div>
           </div>
 
