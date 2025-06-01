@@ -96,9 +96,8 @@ const GalleryView: React.FC = () => {
 
   const toggleFavorite = async (generation: Generation) => {
     try {
-      const timestamp = new Date().toISOString();
       const newFavoriteState = !generation.is_favorite;
-
+      
       // Optimistically update UI
       setGenerations(prev => 
         prev.map(g => g.id === generation.id ? { ...g, is_favorite: newFavoriteState } : g)
@@ -108,32 +107,33 @@ const GalleryView: React.FC = () => {
         .from('generations')
         .update({ 
           is_favorite: newFavoriteState,
-          updated_at: timestamp
+          updated_at: new Date().toISOString()
         })
         .eq('id', generation.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
       // Revert optimistic update on error
       setGenerations(prev => 
         prev.map(g => g.id === generation.id ? { ...g, is_favorite: generation.is_favorite } : g)
       );
+      fetchGenerations();
     }
   };
 
   const handleDelete = async (generation: Generation) => {
     try {
-      const timestamp = new Date().toISOString();
-
       // Optimistically update UI
       setGenerations(prev => prev.filter(g => g.id !== generation.id));
 
       const { error } = await supabase
         .from('generations')
         .update({ 
-          deleted_at: timestamp,
-          updated_at: timestamp
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', generation.id);
 
