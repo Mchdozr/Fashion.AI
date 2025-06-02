@@ -1,4 +1,5 @@
 import React from 'react';
+import { Shirt, Pants, UserShirt } from 'lucide-react';
 
 interface Category {
   id: string;

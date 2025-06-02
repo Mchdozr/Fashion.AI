@@ -28,7 +28,7 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="w-72 h-full bg-[#171717] py-4 flex flex-col overflow-y-auto">
+    <div className="w-72 bg-[#171717] py-4 flex flex-col">
       <div className="px-4 mb-8">
         <div className="flex items-center">
           <div className="bg-white p-1 rounded">
