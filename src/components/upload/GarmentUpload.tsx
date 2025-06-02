@@ -1,5 +1,5 @@
 import React from 'react';
-import { InfoIcon, Shirt, Pants, UserShirt } from 'lucide-react';
+import { InfoIcon, Shirt, Tangent as Pants, Shirt as UserShirt } from 'lucide-react';
 import ImageDropzone from '../ui/ImageDropzone';
 import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
