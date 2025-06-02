@@ -150,6 +150,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const updatedUser = {
         ...userData,
+        first_name: authUser?.user_metadata?.first_name || '',
+        last_name: authUser?.user_metadata?.last_name || '',
         email: authUser?.email || ''
       };
 
