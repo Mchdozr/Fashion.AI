@@ -1,6 +1,6 @@
 import React from 'react';
 import { InfoIcon, Shirt } from 'lucide-react';
-import { ShortsPantsIcon, Dress03Icon, HugeiconsIcon } from '@hugeicons/react/solid';
+import { ShortsPantsIcon, Dress03Icon } from '@hugeicons/react/solid';
 import ImageDropzone from '../ui/ImageDropzone';
 import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
