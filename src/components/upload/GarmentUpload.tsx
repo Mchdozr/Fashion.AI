@@ -1,5 +1,5 @@
 import React from 'react';
-import { InfoIcon, Shirt, Tangent as Pants, Shirt as UserShirt } from 'lucide-react';
+import { InfoIcon } from 'lucide-react';
 import ImageDropzone from '../ui/ImageDropzone';
 import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
@@ -52,9 +52,32 @@ const GarmentUpload: React.FC = () => {
             selectedCategory={category}
             onCategoryChange={handleCategoryChange}
             categories={[
-              { id: 'top', label: 'Top', icon: <Shirt size={20} /> },
-              { id: 'bottom', label: 'Bottom', icon: <Pants size={20} /> },
-              { id: 'full-body', label: 'Full Body', icon: <UserShirt size={20} /> },
+              { 
+                id: 'top', 
+                label: 'Top', 
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 2h8l4 7H4l4-7z"/>
+                  <path d="M4 9v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/>
+                </svg>
+              },
+              { 
+                id: 'bottom', 
+                label: 'Bottom', 
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 2h8l1 12H7L8 2z"/>
+                  <path d="M7 14l-2 8h14l-2-8"/>
+                </svg>
+              },
+              { 
+                id: 'full-body', 
+                label: 'Full Body', 
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2h12l2 7H4l2-7z"/>
+                  <path d="M4 9v13h16V9"/>
+                  <path d="M8 22v-8"/>
+                  <path d="M16 22v-8"/>
+                </svg>
+              }
             ]}
           />
         </div>
