@@ -55,7 +55,6 @@ const LoginPage: React.FC = () => {
         
         if (error) throw error;
         
-        // Store email temporarily for verification
         sessionStorage.setItem('verificationEmail', email);
         navigate('/verify-email');
       } else {
