@@ -32,6 +32,17 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ isOpen, onC
     setSuccess(false);
 
     try {
+      // Update auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          first_name: firstName,
+          last_name: lastName
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Update users table
       const { error: updateError } = await supabase
         .from('users')
         .update({
