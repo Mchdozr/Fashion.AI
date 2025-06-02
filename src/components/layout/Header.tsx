@@ -28,11 +28,11 @@ const Header: React.FC = () => {
     <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-4 py-2">
       <div className="flex items-center">
         {location.pathname === '/' && (
-          <h1 className="text-xl font-bold">STUDIO</h1>
+          <h1 className="text-xl font-bold hidden lg:block">STUDIO</h1>
         )}
       </div>
       
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 lg:space-x-4">
         {user ? (
           <>
             <div className="text-sm text-gray-300">
@@ -41,38 +41,38 @@ const Header: React.FC = () => {
             
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150"
+              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px]"
             >
-              <CreditCard size={18} />
-              <span className="text-sm">Buy Credits</span>
+              <CreditCard size={20} />
+              <span className="text-base">Buy Credits</span>
             </button>
             
             <div className="relative">
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="w-8 h-8 rounded-full bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors duration-150"
+                className="w-11 h-11 rounded-full bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors duration-150"
               >
-                <UserCircle size={20} className="text-gray-300" />
+                <UserCircle size={24} className="text-gray-300" />
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 top-10 w-48 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                <div className="absolute right-0 top-12 w-56 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
                   <button 
                     onClick={() => {
                       setIsProfileSettingsOpen(true);
                       setIsProfileMenuOpen(false);
                     }}
-                    className="w-full px-4 py-2 text-sm text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
+                    className="w-full px-4 py-3 text-base text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
                   >
-                    <Settings size={16} />
+                    <Settings size={20} />
                     Profile Settings
                   </button>
                   
                   <button 
                     onClick={handleSignOut}
-                    className="w-full px-4 py-2 text-sm text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                    className="w-full px-4 py-3 text-base text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
                   >
-                    <LogOut size={16} />
+                    <LogOut size={20} />
                     Sign Out
                   </button>
                 </div>
@@ -82,9 +82,9 @@ const Header: React.FC = () => {
         ) : (
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px]"
           >
-            <span className="text-sm">Sign In</span>
+            <span className="text-base">Sign In</span>
           </button>
         )}
       </div>
