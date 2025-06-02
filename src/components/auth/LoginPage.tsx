@@ -47,7 +47,7 @@ const LoginPage: React.FC = () => {
           options: {
             data: {
               first_name: firstName,
-              last_name: lastName,
+              last_name: lastName
             },
             emailRedirectTo: `${window.location.origin}/verify-email`
           }
@@ -94,7 +94,7 @@ const LoginPage: React.FC = () => {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName\" className="block text-sm font-medium text-gray-300 mb-1">
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
                       First Name
                     </label>
                     <input
