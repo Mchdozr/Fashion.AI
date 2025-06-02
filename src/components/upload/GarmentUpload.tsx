@@ -53,8 +53,8 @@ const GarmentUpload: React.FC = () => {
             onCategoryChange={handleCategoryChange}
             categories={[
               { id: 'top', label: 'Top', icon: <Shirt size={20} /> },
-              { id: 'bottom', label: 'Bottom', icon: < size={20} /> },
-              { id: 'full-body', label: 'Full-body', icon: <Body size={20} /> },
+              { id: 'bottom', label: 'Bottom', icon: <PantsIcon size={20} /> },
+              { id: 'full-body', label: 'Full-body', icon: <PackageOpen size={20} /> },
             ]}
           />
         </div>
