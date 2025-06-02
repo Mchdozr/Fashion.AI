@@ -1,5 +1,5 @@
 import React from 'react';
-import { InfoIcon, Shirt, Tangent as Pants, Shirt as UserShirt } from 'lucide-react';
+import { InfoIcon, Shirt, UserSquare2, Shirt as FullBody } from 'lucide-react';
 import ImageDropzone from '../ui/ImageDropzone';
 import CategorySelector from '../ui/CategorySelector';
 import { useAppContext } from '../../contexts/AppContext';
@@ -53,8 +53,8 @@ const GarmentUpload: React.FC = () => {
             onCategoryChange={handleCategoryChange}
             categories={[
               { id: 'top', label: 'Top', icon: <Shirt size={20} /> },
-              { id: 'bottom', label: 'Bottom', icon: <Pants size={20} /> },
-              { id: 'full-body', label: 'Full Body', icon: <UserShirt size={20} /> },
+              { id: 'bottom', label: 'Bottom', icon: <UserSquare2 size={20} /> },
+              { id: 'full-body', label: 'Full Body', icon: <FullBody size={20} /> },
             ]}
           />
         </div>
@@ -62,5 +62,3 @@ const GarmentUpload: React.FC = () => {
     </div>
   );
 };
-
-export default GarmentUpload;
