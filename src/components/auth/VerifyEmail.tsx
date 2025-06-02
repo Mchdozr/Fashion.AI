@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shirt, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Image as ImageIcon, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const VerifyEmail: React.FC = () => {
@@ -38,7 +38,7 @@ const VerifyEmail: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center bg-white p-2 rounded-lg mb-4">
-            <Shirt size={24} className="text-black" />
+            <ImageIcon size={24} className="text-black" />
           </div>
           <h1 className="text-2xl font-bold text-white">FASHNAI STUDIO</h1>
         </div>
@@ -89,3 +89,5 @@ const VerifyEmail: React.FC = () => {
     </div>
   );
 };
+
+export default VerifyEmail;
