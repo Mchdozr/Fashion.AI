@@ -25,26 +25,26 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-4 py-2">
+    <header className="h-16 bg-[#171717] border-b border-[#333333] flex items-center justify-between px-3 md:px-4 py-2">
       <div className="flex items-center">
         {location.pathname === '/' && (
           <h1 className="text-xl font-bold hidden lg:block">STUDIO</h1>
         )}
       </div>
       
-      <div className="flex items-center space-x-2 lg:space-x-4">
+      <div className="flex items-center space-x-2 md:space-x-4">
         {user ? (
           <>
-            <div className="text-sm text-gray-300">
+            <div className="text-sm text-gray-300 hidden sm:block">
               Credits: <span className="font-medium text-white">{credits}</span>
             </div>
             
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px]"
+              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-3 md:px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px] min-w-[44px]"
             >
               <CreditCard size={20} />
-              <span className="text-base">Buy Credits</span>
+              <span className="hidden sm:inline text-base">Buy Credits</span>
             </button>
             
             <div className="relative">

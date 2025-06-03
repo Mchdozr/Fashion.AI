@@ -33,13 +33,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="h-full bg-[#171717] py-4 flex flex-col w-72">
-      <div className="flex items-center justify-between px-4 mb-8">
+    <div className="h-full bg-[#171717] py-4 flex flex-col w-64 md:w-72">
+      <div className="flex items-center justify-between px-3 md:px-4 mb-6 md:mb-8">
         <div className="flex items-center">
           <div className="bg-white p-2 rounded">
             <Shirt size={20} className="text-black" />
           </div>
-          <span className="ml-2 text-xl font-bold text-white">FASHNAI</span>
+          <span className="ml-2 text-lg md:text-xl font-bold text-white">FASHNAI</span>
         </div>
         {onClose && (
           <button 
@@ -52,10 +52,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       </div>
 
       {user && (
-        <div className="px-4 mb-6">
+        <div className="px-3 md:px-4 mb-6">
           <div className="bg-[#222222] rounded-lg p-4 border border-[#333333]">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-full bg-[#F8D74B] flex items-center justify-center flex-shrink-0">
+              <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-[#F8D74B] flex items-center justify-center flex-shrink-0">
                 <span className="text-base font-bold text-black">
                   {getInitials(user)}
                 </span>
@@ -86,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
                 <Link
                   to={item.path}
                   onClick={onClose}
-                  className={`flex items-center px-4 py-4 text-base ${
+                  className={`flex items-center px-3 md:px-4 py-4 text-base ${
                     isActive
                       ? 'bg-[#2A2A2A] text-white border-l-2 border-[#F8D74B]'
                       : 'text-gray-300 hover:bg-[#2A2A2A] transition-colors duration-150'

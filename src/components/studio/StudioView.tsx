@@ -9,8 +9,8 @@ const StudioView: React.FC = () => {
   const { isGenerating, generationProgress } = useAppContext();
 
   return (
-    <main className="p-6 min-h-[calc(100vh-4rem)]">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <main className="p-3 md:p-6 min-h-[calc(100vh-4rem)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
         <div className="aspect-[3/4] lg:aspect-auto lg:h-[600px]">
           <ModelUpload />
         </div>
@@ -22,7 +22,7 @@ const StudioView: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-3 md:mt-6">
         <div className="max-w-md mx-auto">
           <GenerationSettings />
           
