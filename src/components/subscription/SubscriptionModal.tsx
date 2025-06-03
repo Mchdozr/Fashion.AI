@@ -120,9 +120,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                 </ul>
 
                 <button
-                  className={`w-full py-3 rounded-lg font-medium transition-colors duration-150 ${
+                  className={`w-full py-3 rounded-lg font-medium transition-all duration-150 ${
                     plan.highlight
-                      ? 'bg-black text-white hover:bg-gray-900'
+                      ? 'bg-black text-white hover:bg-gray-900 hover:scale-105 active:scale-95'
                       : plan.buttonVariant === 'white'
                       ? 'bg-white text-black hover:bg-gray-100'
                       : 'bg-[#333333] text-white hover:bg-[#444444]'
