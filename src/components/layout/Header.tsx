@@ -39,45 +39,45 @@ const Header: React.FC = () => {
               Credits: <span className="font-medium text-white">{credits}</span>
             </div>
             
-            <button 
-              onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-3 md:px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px]"
-            >
-              <CreditCard size={20} />
-              <span className="hidden lg:inline text-base">Buy Credits</span>
-            </button>
-            
-            <div className="relative">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsSubscriptionModalOpen(true)}
+                className="flex items-center justify-center bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-3 md:px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px] min-w-[44px]"
+              >
+                <CreditCard size={20} />
+                <span className="hidden lg:inline text-base ml-2">Buy Credits</span>
+              </button>
+              
               <button 
                 onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                 className="w-11 h-11 rounded-full bg-[#333333] flex items-center justify-center hover:bg-[#444444] transition-colors duration-150"
               >
                 <UserCircle size={24} className="text-gray-300" />
               </button>
-
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 top-12 w-56 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
-                  <button 
-                    onClick={() => {
-                      setIsProfileSettingsOpen(true);
-                      setIsProfileMenuOpen(false);
-                    }}
-                    className="w-full px-4 py-3 text-base text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
-                  >
-                    <Settings size={20} />
-                    Profile Settings
-                  </button>
-                  
-                  <button 
-                    onClick={handleSignOut}
-                    className="w-full px-4 py-3 text-base text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
-                  >
-                    <LogOut size={20} />
-                    Sign Out
-                  </button>
-                </div>
-              )}
             </div>
+
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-12 w-56 bg-[#222222] rounded-lg shadow-lg border border-[#333333] py-1 z-50">
+                <button 
+                  onClick={() => {
+                    setIsProfileSettingsOpen(true);
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 text-base text-left hover:bg-[#2A2A2A] flex items-center gap-2 text-gray-200"
+                >
+                  <Settings size={20} />
+                  Profile Settings
+                </button>
+                
+                <button 
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-3 text-base text-left text-red-400 hover:bg-[#2A2A2A] flex items-center gap-2"
+                >
+                  <LogOut size={20} />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <button
