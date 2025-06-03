@@ -32,19 +32,19 @@ const Header: React.FC = () => {
         )}
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 lg:gap-4">
         {user ? (
           <>
-            <div className="text-sm text-gray-300 hidden sm:block">
+            <div className="text-sm text-gray-300 hidden lg:block">
               Credits: <span className="font-medium text-white">{credits}</span>
             </div>
             
             <button 
               onClick={() => setIsSubscriptionModalOpen(true)}
-              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-3 md:px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px] min-w-[44px]"
+              className="flex items-center gap-2 bg-[#F8D74B] hover:bg-[#f9df6e] text-black px-3 md:px-4 py-2 rounded-md font-medium transition-colors duration-150 min-h-[44px]"
             >
               <CreditCard size={20} />
-              <span className="hidden sm:inline text-base">Buy Credits</span>
+              <span className="hidden lg:inline text-base">Buy Credits</span>
             </button>
             
             <div className="relative">
